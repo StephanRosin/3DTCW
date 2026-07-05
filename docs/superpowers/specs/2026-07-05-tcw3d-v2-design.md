@@ -128,3 +128,7 @@ Ball-Physik, Tag/Nacht-Umschalter, Backend jeglicher Art.
 - Terrasse doppelt so tief (~15 m); Klubhaus dafür nach hinten versetzt.
 - Der Eingang (Steinbogen) führt DIREKT auf die Terrasse; kein langer Weg
   im Osten mehr, keine Ost-Treppe. Spieler-Start auf dem Vorplatz beim Bogen.
+- Layout nach Skizze `~/Downloads/TCWLayout.png`: Vorplatz mit Gebüsch in
+  der Mitte, links Klubhaus + Tennisclub-Terrasse (Court 1–3), rechts
+  **Restaurant** (baugleich, Court 4–6) mit Restaurant-Terrasse (Tische,
+  Stühle, Schirme). Kein Häuschen am Eingang (gestrichen).
