@@ -101,6 +101,12 @@ window.addEventListener('resize', () => {
 // Debug handle (harmless; handy for inspecting the scene from the console).
 window.__tcw = { scene, camera, renderer };
 
+window.__tcw.teleport = (x, z, yawDeg = 0) => {
+  camera.position.set(x, 1.7, z);
+  camera.rotation.set(0, yawDeg * Math.PI / 180, 0);
+  player.setView?.(x, z, yawDeg);   // ab Task 6: hält yaw/pitch des Controllers synchron
+};
+
 // --- Loop ---
 const clock = new THREE.Clock();
 function animate() {

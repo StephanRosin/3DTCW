@@ -124,5 +124,9 @@ export function createPlayer(camera, dom, startPos, lookAt) {
     start,
     stop,
     set onStop(fn) { onStop = fn; },
+    setView(x, z, yawDeg) {
+      camera.position.x = x; camera.position.z = z;
+      yaw = yawDeg * Math.PI / 180; pitch = 0;
+    },
   };
 }

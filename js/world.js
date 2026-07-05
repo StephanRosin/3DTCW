@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Sky } from 'three/addons/objects/Sky.js';
+import { pbr } from './textures.js';
 
 /** Create the scene with fog tuned to blend the forest into a hazy horizon. */
 export function createScene() {
@@ -56,39 +57,13 @@ export function createLights(scene, sunDir) {
   return sun;
 }
 
-/** Large grassy ground plane with a subtly mottled canvas texture. */
+/** Large grassy ground plane with a photoreal PBR grass texture. */
 export function createGround(scene) {
   const size = 800;
-  const tex = grassTexture();
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(size / 8, size / 8);
-  tex.anisotropy = 8;
-
-  const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 1, metalness: 0 });
-  const geo = new THREE.PlaneGeometry(size, size);
-  const ground = new THREE.Mesh(geo, mat);
+  const mat = pbr({ dir: 'assets/textures/grass', color: 0x6a8f4a, repeat: [size / 6, size / 6] });
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(size, size), mat);
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
   scene.add(ground);
   return ground;
-}
-
-function grassTexture() {
-  const c = document.createElement('canvas');
-  c.width = c.height = 128;
-  const g = c.getContext('2d');
-  g.fillStyle = '#5f8a3a';
-  g.fillRect(0, 0, 128, 128);
-  for (let i = 0; i < 2600; i++) {
-    const x = Math.random() * 128;
-    const y = Math.random() * 128;
-    const shade = Math.random();
-    if (shade < 0.5) g.fillStyle = 'rgba(70,110,45,0.55)';
-    else if (shade < 0.8) g.fillStyle = 'rgba(110,150,70,0.5)';
-    else g.fillStyle = 'rgba(45,70,30,0.5)';
-    g.fillRect(x, y, 1.6, 1.6);
-  }
-  const t = new THREE.CanvasTexture(c);
-  t.needsUpdate = true;
-  return t;
 }
