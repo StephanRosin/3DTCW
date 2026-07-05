@@ -168,3 +168,7 @@ Ball-Physik, Tag/Nacht-Umschalter, Backend jeglicher Art.
   abgegrenzt bis zur Eingangsmauer. Gebüsch als natürliche Begrenzung an
   der COURT-Seite des Gehwegs (zwischen Grotto- und TCW-Bereich).
   Eingangsmauer im selben Material wie die Clubhaus-Fassade (Holz).
+- Zusatz: 2 m östlich der Haupttreppe ein kleiner Heckendurchgang mit
+  kurzer Treppe (ohne Geländer) von der Terrasse auf den erhöhten Rasen;
+  der Rasen ist begehbar (+0,75 m), zu den Courts und an der Eingangsmauer
+  abgegrenzt.
