@@ -132,3 +132,15 @@ Ball-Physik, Tag/Nacht-Umschalter, Backend jeglicher Art.
   der Mitte, links Klubhaus + Tennisclub-Terrasse (Court 1–3), rechts
   **Restaurant** (baugleich, Court 4–6) mit Restaurant-Terrasse (Tische,
   Stühle, Schirme). Kein Häuschen am Eingang (gestrichen).
+- Die weissen Flächen der Skizze sind **Gehwege**: an der Restaurant-
+  Terrasse führt ein freier Gehweg (courtsseitig) vorbei — Möblierung
+  lässt diese Gasse frei.
+- Das Restaurant heisst **«Tessin Grotto»** (nicht Klubrestaurant).
+- **Info-Punkte gestrichen** (USER-VORGABE) — kein E-Overlay.
+- Eingang: Bogen sitzt **weit links in der Mauer**; das **Waidcup-Poster
+  gross an der Wand rechts vom Eingang** (statt Fahnenmast — Mast entfällt).
+- **Logos/Poster in Originalfarben**: unbeleuchtetes Material, kein
+  Tone-Mapping, keine Transparenz.
+- Innen nach dem Eingang rechts: **4 grosse Screens** an der Wand —
+  Platzhalter, vorbereitet für spätere WebApp-Inhalte (API-Hook
+  `window.__tcw.screens` / `setScreen(i, source)`).
