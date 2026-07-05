@@ -144,3 +144,11 @@ Ball-Physik, Tag/Nacht-Umschalter, Backend jeglicher Art.
 - Innen nach dem Eingang rechts: **4 grosse Screens** an der Wand —
   Platzhalter, vorbereitet für spätere WebApp-Inhalte (API-Hook
   `window.__tcw.screens` / `setScreen(i, source)`).
+- TCW-Terrasse nach Skizze TCWLayout2.png: Bar als begehbare Nische hinter
+  einer HOHEN Holzwand (klubhaushoch), Zapfhahn + 2 Kühlschränke direkt an
+  der Holzwand; 4 eckige Tische (Stühle an den Längsseiten) unter der
+  Pergola/Überdachung; runder Tisch mit 6 Stühlen; 4 frei stehende Screens,
+  Front nach AUSSEN (zu den Courts); Eingang (Bogen) links (Süd-Ende), Mauer
+  bis zum Gehwegrand; Treppe zu den Courts nur im Bereich der TCW-Terrasse;
+  Hecke vor der Mauer schlüssig (kein Durchkommen); Grotto-Terrasse mit
+  Mäuerchen zum seitlichen Gehweg abgetrennt (eine Öffnung).
