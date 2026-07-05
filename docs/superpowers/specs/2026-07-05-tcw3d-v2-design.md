@@ -157,3 +157,7 @@ Ball-Physik, Tag/Nacht-Umschalter, Backend jeglicher Art.
   Abschnitt (rechts vom Eingang). Screens damit beim Eintreten rechts.
 - Terrassen-Musik: 2 MP3s (lokal, gitignored) abwechselnd als Positional
   Audio an der TCW-Terrasse; hörbar bis vor den Eingang, nicht beim Grotto.
+- KLARSTELLUNG Links/Rechts: Referenzrahmen ist die ANKUNFTSSICHT vom
+  Vorplatz (Blick nach Westen auf die Mauer): links = Süden, rechts =
+  Norden. Bogen am linken (Süd-)Ende, TCW-Rondell links daneben auf dem
+  Südpfeiler, Waidcup-Poster mit Abstand rechts (Nordabschnitt).
