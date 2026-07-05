@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { resolveCollisions } from './collision.js';
+import { resolveCollisions, groundHeight } from './collision.js';
 
 const EYE_HEIGHT = 1.7;
 const RADIUS = 0.4;
@@ -116,7 +116,9 @@ export function createPlayer(camera, dom, startPos, lookAt) {
 
     camera.position.x = THREE.MathUtils.clamp(camera.position.x, -WORLD_LIMIT, WORLD_LIMIT);
     camera.position.z = THREE.MathUtils.clamp(camera.position.z, -WORLD_LIMIT, WORLD_LIMIT);
-    camera.position.y = EYE_HEIGHT;
+
+    const targetY = EYE_HEIGHT + groundHeight(camera.position.x, camera.position.z);
+    camera.position.y = THREE.MathUtils.lerp(camera.position.y, targetY, Math.min(1, 10 * dt));
   }
 
   return {

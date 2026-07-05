@@ -3,6 +3,24 @@
 
 export const colliders = [];
 
+// --- Ground height model (Task 6) ---------------------------------------
+// North of the courts, a raised terrace plateau carries the future clubhouse
+// (Task 7) and entrance walkway (Task 8). Two ramp zones (aligned with the
+// north-fence gates) let players walk up/down between plateau and ground.
+export const PLATEAU = { minX: -38, maxX: 75, minZ: -40, maxZ: -21, h: 1.5, stepDepth: 2.4 };
+export const RAMPS = [ { minX: -38, maxX: 8 }, { minX: 37, maxX: 43 } ];
+
+export function groundHeight(x, z) {
+  const p = PLATEAU;
+  if (x < p.minX || x > p.maxX) return 0;
+  if (z >= p.minZ && z <= p.maxZ) return p.h;
+  if (z > p.maxZ && z <= p.maxZ + p.stepDepth
+      && RAMPS.some((r) => x >= r.minX && x <= r.maxX)) {
+    return p.h * (1 - (z - p.maxZ) / p.stepDepth);
+  }
+  return 0;
+}
+
 /** Register an axis-aligned box collider (world coordinates). */
 export function addBox(minX, minZ, maxX, maxZ) {
   colliders.push({ minX, minZ, maxX, maxZ });

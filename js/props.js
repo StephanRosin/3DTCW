@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { addBox } from './collision.js';
+import { addBox, addWall, PLATEAU, RAMPS } from './collision.js';
+import { pbr } from './textures.js';
 
 export const wood = (c = 0x8a5a33) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.85, metalness: 0 });
 export const metalDark = new THREE.MeshStandardMaterial({ color: 0x2b2f33, roughness: 0.5, metalness: 0.6 });
@@ -88,6 +89,92 @@ export function buildHedge(scene, x, z, w, d, h = 0.8) {
   hedge.castShadow = true; hedge.receiveShadow = true;
   scene.add(hedge);
   addBox(x - w / 2, z - d / 2, x + w / 2, z + d / 2);
+}
+
+/**
+ * The raised terrace plateau north of the courts (Task 6): a solid platform
+ * (+1.5 m) that will carry the future clubhouse/terrace (Task 7) and the
+ * entrance walkway (Task 8). Its south edge has a concrete retaining wall
+ * with a low hedge on top, except in the two RAMPS X-ranges where sitting
+ * steps (grandstand/staircase) lead down to ground level — those are the
+ * walkable ramps aligned with the north-fence gates; `groundHeight()` in
+ * collision.js provides the smooth Y ramp players actually walk on.
+ */
+export function buildTerracePlateau(scene) {
+  const p = PLATEAU;
+  const deckH = p.h;                 // 1.5
+  const splitX = 8;                  // west = terrace paving, east = plain concrete deck (path in Task 8)
+  const cz = (p.minZ + p.maxZ) / 2;
+  const depth = p.maxZ - p.minZ;
+
+  // --- Top deck: west (paving) + east (plain concrete-colour) -------------
+  const pavingTop = pbr({ dir: 'assets/textures/paving', color: 0xb7b0a0, repeat: [15, 6], roughness: 0.95 });
+  const concreteSide = pbr({ dir: 'assets/textures/concrete', color: 0x9a958c, repeat: [20, 1.5], roughness: 0.9 });
+  const concreteTop = new THREE.MeshStandardMaterial({ color: 0x9a958c, roughness: 0.9 });
+
+  function deckBox(minX, maxX, topMat) {
+    const w = maxX - minX;
+    const geo = new THREE.BoxGeometry(w, deckH, depth);
+    // Face order: +x, -x, +y (top), -y (bottom), +z, -z
+    const mesh = new THREE.Mesh(geo, [concreteSide, concreteSide, topMat, concreteSide, concreteSide, concreteSide]);
+    mesh.position.set((minX + maxX) / 2, deckH / 2, cz);
+    mesh.castShadow = true; mesh.receiveShadow = true;
+    scene.add(mesh);
+  }
+  deckBox(p.minX, splitX, pavingTop);
+  deckBox(splitX, p.maxX, concreteTop);
+
+  // --- South retaining wall + hedge, skipping the two ramp X-ranges -------
+  const ramps = [...RAMPS].sort((a, b) => a.minX - b.minX);
+  const wallSegments = [];
+  let cursor = p.minX;
+  for (const r of ramps) {
+    if (r.minX > cursor) wallSegments.push({ minX: cursor, maxX: r.minX });
+    cursor = Math.max(cursor, r.maxX);
+  }
+  if (cursor < p.maxX) wallSegments.push({ minX: cursor, maxX: p.maxX });
+
+  const wallMat = pbr({ dir: 'assets/textures/concrete', color: 0x9a958c, repeat: [8, 1], roughness: 0.9 });
+  const hedgeMat = new THREE.MeshStandardMaterial({ color: 0x3d6b2e, roughness: 1 });
+  const wallThickness = 0.3, hedgeH = 0.5, hedgeDepth = 0.5;
+
+  for (const seg of wallSegments) {
+    const w = seg.maxX - seg.minX;
+    const segCx = (seg.minX + seg.maxX) / 2;
+
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(w, deckH, wallThickness), wallMat);
+    wall.position.set(segCx, deckH / 2, p.maxZ);
+    wall.castShadow = true; wall.receiveShadow = true;
+    scene.add(wall);
+
+    const hedge = new THREE.Mesh(new THREE.BoxGeometry(w, hedgeH, hedgeDepth), hedgeMat);
+    hedge.position.set(segCx, deckH + hedgeH / 2, p.maxZ);
+    hedge.castShadow = true; hedge.receiveShadow = true;
+    scene.add(hedge);
+
+    // Thin collider along the south edge/railing (blocks players from the north side too — intended).
+    addBox(seg.minX, p.maxZ - 0.3, seg.maxX, p.maxZ + 0.1);
+  }
+
+  // West edge collider (north fence/forest side stays open).
+  addWall(p.minX, p.minZ, p.minX, p.maxZ, 0.3);
+
+  // --- Sitting steps (tribune west / staircase east) in both RAMPS zones --
+  const woodMat = pbr({ dir: 'assets/textures/wood', color: 0x8a5a33, repeat: [6, 1], roughness: 0.85 });
+  const stepHeights = [1.375, 1.125, 0.875, 0.625, 0.375, 0.125];
+  const stepDepth = 0.4, stepH = 0.25;
+
+  for (const ramp of RAMPS) {
+    const w = ramp.maxX - ramp.minX;
+    const rampCx = (ramp.minX + ramp.maxX) / 2;
+    stepHeights.forEach((topY, i) => {
+      const stepZ = p.maxZ + stepDepth / 2 + i * stepDepth;  // -20.8, -20.4, ..., -18.8
+      const step = new THREE.Mesh(new THREE.BoxGeometry(w, stepH, stepDepth), woodMat);
+      step.position.set(rampCx, topY - stepH / 2, stepZ);
+      step.castShadow = true; step.receiveShadow = true;
+      scene.add(step);
+    });
+  }
 }
 
 /**

@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { createScene, createSky, createLights, createGround } from './world.js';
 import { buildCourtRow, ENC } from './tennis.js';
-import { buildForest } from './props.js';
+import { buildForest, buildTerracePlateau } from './props.js';
 import { createPlayer } from './player.js';
+import { groundHeight } from './collision.js';
 
 const app = document.getElementById('app');
 
@@ -32,6 +33,9 @@ const { courtX } = buildCourtRow(scene);
 // Note: the provisional v1 clubhouse/terrace (south side) has been removed.
 // The real clubhouse will be rebuilt on the north side in a later task, which is
 // also why the north fence has no windscreen (clear sightline from the clubhouse).
+
+// --- Terrace plateau (Task 6): ground-height model + grandstand steps ---
+buildTerracePlateau(scene);
 
 // --- Forest ring ---
 buildForest(scene, 440, 80, 235);
@@ -65,7 +69,7 @@ window.addEventListener('resize', () => {
 window.__tcw = { scene, camera, renderer };
 
 window.__tcw.teleport = (x, z, yawDeg = 0) => {
-  camera.position.set(x, 1.7, z);
+  camera.position.set(x, 1.7 + groundHeight(x, z), z);
   camera.rotation.set(0, yawDeg * Math.PI / 180, 0);
   player.setView?.(x, z, yawDeg);   // ab Task 6: hält yaw/pitch des Controllers synchron
 };
