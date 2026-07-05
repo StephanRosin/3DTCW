@@ -118,15 +118,20 @@ export function buildEntrance(scene) {
   // --- Plaza greenery, at the COURT side of the plaza (the natural
   // boundary between the Grotto walkway and the TCW terrace), NOT near the
   // buildings/entrance. Sits just north of (behind) the terrace's south
-  // retaining-wall hedge line (z≈-21.2), on the plaza itself. A dense run
-  // of overlapping bush clusters (radius 0.7-1.5 m, slight x/z/y jitter so
-  // it doesn't read as a mechanical repeat) reads as a proper green
-  // boundary rather than a thin line of puny bushes. The bed is a full bay
-  // deep (z -21.4..-23.6ish), densest near the original z -21.4..-23 line
-  // and thinning out toward z -24.2, so it grows toward the buildings/arch
-  // side without ever reaching the walking corridor (z -25.5..-24.3, kept
-  // clear on purpose — see the walk-route check where this file is used).
-  // No collider is added for bushes, by design (walkable-through greenery).
+  // parapet wall, on the plaza itself. A dense run of overlapping bush
+  // clusters (radius 0.6-1.6 m, slight x/z jitter so it doesn't read as a
+  // mechanical repeat) reads as a proper green boundary rather than a thin
+  // line of puny bushes. The bed is wide (x -2..9.5) and a full bay deep
+  // (z -21.4..-23.6ish), densest near the original z -21.4..-23 line and
+  // thinning out toward z -23.6, so it grows toward the buildings/arch side
+  // without ever reaching the walking corridor (z -25.5..-24.3, kept clear
+  // on purpose — see the walk-route check where this file is used). Every
+  // cluster is sunk well below the plateau floor plane (deep enough that
+  // its lowest point sits >=0.15 m below floor level, so it visibly plants
+  // into the deck instead of floating above it) — see the dy values below,
+  // each chosen so localY (= r*0.85 + dy) keeps the blob's bottom (localY -
+  // r) at least 0.15 below the group's local floor plane (y=0). No collider
+  // is added for bushes, by design (walkable-through greenery).
   const bushMat = new THREE.MeshStandardMaterial({ color: 0x2e5c28, roughness: 1, flatShading: true });
   function buildBush(x, z, r, dy = 0) {
     const bush = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 0), bushMat);
@@ -135,25 +140,33 @@ export function buildEntrance(scene) {
     group.add(bush);
   }
   const bushClusters = [
-    // Original front row (z -21.4..-22.2, closest to the court-side line).
-    { x: -0.3, z: -21.6, r: 1.0, dy: 0.05 },
-    { x: 1.0, z: -21.9, r: 1.3, dy: -0.05 },
-    { x: 2.2, z: -21.5, r: 0.9, dy: 0.08 },
-    { x: 3.4, z: -22.0, r: 1.4, dy: -0.03 },
-    { x: 4.6, z: -21.6, r: 1.0, dy: 0.04 },
-    { x: 5.8, z: -21.9, r: 1.2, dy: -0.06 },
-    { x: 7.0, z: -21.5, r: 0.8, dy: 0.06 },
+    // Front row (z -21.4..-22.2, closest to the court-side line).
+    { x: -2.0, z: -21.6, r: 1.0, dy: -0.15 },
+    { x: -0.6, z: -21.9, r: 1.3, dy: -0.20 },
+    { x: 0.8, z: -21.5, r: 0.9, dy: -0.16 },
+    { x: 2.2, z: -22.0, r: 1.4, dy: -0.22 },
+    { x: 3.6, z: -21.6, r: 1.0, dy: -0.15 },
+    { x: 5.0, z: -21.9, r: 1.2, dy: -0.19 },
+    { x: 6.4, z: -21.5, r: 0.8, dy: -0.15 },
+    { x: 7.8, z: -21.8, r: 1.1, dy: -0.17 },
+    { x: 9.0, z: -21.5, r: 0.9, dy: -0.15 },
     // Second, deeper row (z -22.4..-23.1) doubling the bed's depth toward
     // the buildings/arch side.
-    { x: -0.5, z: -22.4, r: 1.1, dy: 0.02 },
-    { x: 0.7, z: -22.9, r: 1.3, dy: -0.04 },
-    { x: 2.0, z: -22.5, r: 1.0, dy: 0.05 },
-    { x: 3.2, z: -23.1, r: 1.0, dy: -0.02 },
-    { x: 4.5, z: -22.7, r: 1.1, dy: 0.04 },
-    { x: 5.7, z: -23.0, r: 1.2, dy: -0.03 },
+    { x: -1.5, z: -22.4, r: 1.1, dy: -0.16 },
+    { x: -0.2, z: -22.9, r: 1.3, dy: -0.21 },
+    { x: 1.2, z: -22.5, r: 1.0, dy: -0.15 },
+    { x: 2.6, z: -23.1, r: 1.0, dy: -0.15 },
+    { x: 4.0, z: -22.7, r: 1.1, dy: -0.17 },
+    { x: 5.4, z: -23.0, r: 1.2, dy: -0.19 },
+    { x: 6.8, z: -22.6, r: 0.9, dy: -0.15 },
+    { x: 8.2, z: -22.9, r: 1.0, dy: -0.15 },
     // Sparse outliers thinning toward the walk corridor; kept well clear of
-    // z=-24.3 so the corridor to the arch stays visually and physically open.
-    { x: 3.0, z: -23.6, r: 0.7, dy: 0.0 },
+    // z=-24.3 so the corridor to the arch (z -25.5..-24.3) stays visually
+    // and physically open.
+    { x: -1.0, z: -23.6, r: 0.7, dy: -0.15 },
+    { x: 2.0, z: -23.5, r: 0.6, dy: -0.15 },
+    { x: 5.0, z: -23.6, r: 0.7, dy: -0.15 },
+    { x: 8.0, z: -23.5, r: 0.6, dy: -0.15 },
   ];
   for (const b of bushClusters) buildBush(b.x, b.z, b.r, b.dy);
 
@@ -166,22 +179,27 @@ export function buildEntrance(scene) {
   {
     const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5b4127, roughness: 1 });
     const crownMat = new THREE.MeshStandardMaterial({ color: 0x3f7532, roughness: 1, flatShading: true });
-    const tx = 3.5, tz = -21.9, trunkH = 3.2, trunkR = 0.16;
+    // 50% bigger than the original sapling-scale tree: thicker tapered trunk
+    // (0.24 at the base narrowing to 0.20) and a wider, higher crown (~7 m
+    // overall width) so it reads as a mature shade tree in the plaza.
+    const tx = 3.5, tz = -21.9, trunkH = 4.8, trunkR = 0.24;
     // Trunk runs from the plateau floor (local y 0) up into the crown so it
     // visibly enters the lowest crown blob instead of leaving a floating gap.
-    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.13, trunkR, trunkH, 8), trunkMat);
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.20, trunkR, trunkH, 8), trunkMat);
     trunk.position.set(tx, trunkH / 2, tz);
     trunk.castShadow = true;
     group.add(trunk);
 
-    const crownY = 3.2;
+    // Crown sits at y=5.5, well above the trunk top (4.8) but still deeply
+    // overlapped by the blobs' own radii (1.6-2.5 m), so it never floats.
+    const crownY = 5.5;
     const crownBlobs = [
-      { dx: 0, dz: 0, r: 1.7 },
-      { dx: 1.2, dz: 0.5, r: 1.2 },
-      { dx: -1.2, dz: 0.5, r: 1.2 },
-      { dx: 0.4, dz: -1.3, r: 1.1 },
-      { dx: -0.5, dz: -1.2, r: 1.1 },
-      { dx: 0.2, dz: 1.4, r: 1.1 },
+      { dx: 0, dz: 0, r: 2.5 },
+      { dx: 1.75, dz: 0.7, r: 1.75 },
+      { dx: -1.75, dz: 0.7, r: 1.75 },
+      { dx: 0.6, dz: -1.9, r: 1.6 },
+      { dx: -0.7, dz: -1.75, r: 1.6 },
+      { dx: 0.3, dz: 2.0, r: 1.6 },
     ];
     for (const b of crownBlobs) {
       const blob = new THREE.Mesh(new THREE.IcosahedronGeometry(b.r, 0), crownMat);
@@ -194,14 +212,10 @@ export function buildEntrance(scene) {
     addBox(tx - trunkR * 1.5, tz - trunkR * 1.5, tx + trunkR * 1.5, tz + trunkR * 1.5);
   }
 
-  // Planter, same court-side boundary, east of the bushes.
-  const planterMat = new THREE.MeshStandardMaterial({ color: 0x3d6b2e, roughness: 1 });
-  const planter = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.5, 0.8), planterMat);
-  planter.position.set(11, 0.25, -21.7);
-  planter.castShadow = true; planter.receiveShadow = true;
-  group.add(planter);
-
-  const startPos = new THREE.Vector3(4, 0, -24.0);
+  // On free paving ~5 m in front of the arch (opening centered at x=-12,
+  // z=-24), facing it straight on — clear of the plaza greenery bed, which
+  // stays east of x=-2 and north of z=-23.6 (>1.5 m from this spot).
+  const startPos = new THREE.Vector3(-7, 0, -24.0);
   const lookTarget = new THREE.Vector3(-20, 0, -24.0);
   return { startPos, lookTarget };
 }

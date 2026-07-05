@@ -159,12 +159,13 @@ export function buildTerracePlateau(scene) {
   scene.add(deck);
 
   // --- South retaining wall + hedge, full height (1.5 m) only west of the
-  // stairs and east of the lawn — the strip in between (LAWN.minX..LAWN.maxX)
-  // is the half-height lawn terrace built further below, which gets its own
-  // (shorter) edge treatment instead of this wall. ------------------------
+  // stairs — the strip in between (LAWN.minX..LAWN.maxX) is the half-height
+  // lawn terrace built further below, which gets its own (shorter) edge
+  // treatment instead of this wall. East of the lawn (x -12..10, behind the
+  // entrance wall) gets a Mäuerchen-style parapet instead of a hedge — see
+  // below. ------------------------------------------------------------
   const wallSegments = [
     { minX: p.minX, maxX: RAMPS[0].minX },        // -48..-33 (west of the stairs)
-    { minX: LAWN.maxX, maxX: GROTTO_WALK.minX },   // -12..10 (east of the lawn, behind the entrance wall)
     // x=10..48 has no edge wall/hedge here — the plateau itself extends all
     // the way to the court fence there (the Grotto walkway, built below).
   ];
@@ -172,6 +173,12 @@ export function buildTerracePlateau(scene) {
   const wallMat = pbr({ dir: 'assets/textures/concrete', color: 0x9a958c, repeat: [8, 1], roughness: 0.9 });
   const hedgeMat = new THREE.MeshStandardMaterial({ color: 0x3d6b2e, roughness: 1 });
   const wallThickness = 0.3, hedgeH = 0.5, hedgeDepth = 0.5;
+  // Every parapet-style wall built on top of a floor/retaining surface sinks
+  // this far below that surface's nominal top (instead of sitting exactly
+  // coplanar with it), so there's never a hairline gap or z-fighting seam
+  // where the two meshes meet — the visible top height is unaffected since
+  // only the hidden bottom shifts down.
+  const parapetSink = 0.1;
 
   for (const seg of wallSegments) {
     const w = seg.maxX - seg.minX;
@@ -189,6 +196,44 @@ export function buildTerracePlateau(scene) {
 
     // Thin collider along the south edge/railing (fixed sliver: hugs p.maxZ).
     addBox(seg.minX, p.maxZ - 0.3, seg.maxX, p.maxZ + 0.15);
+  }
+
+  // --- Retaining wall face only (no hedge) east of the lawn, x -12..10
+  // (behind the entrance wall): the plaza-edge parapet built just below
+  // replaces the hedge that used to sit here, but the structural retaining
+  // wall holding up the plateau itself stays exactly as before. -----------
+  {
+    const rMinX = LAWN.maxX, rMaxX = GROTTO_WALK.minX;   // -12..10
+    const rw = rMaxX - rMinX, rCx = (rMinX + rMaxX) / 2;
+    const retWall = new THREE.Mesh(new THREE.BoxGeometry(rw, deckH, wallThickness), wallMat);
+    retWall.position.set(rCx, deckH / 2, p.maxZ);
+    retWall.castShadow = true; retWall.receiveShadow = true;
+    scene.add(retWall);
+    addBox(rMinX, p.maxZ - 0.3, rMaxX, p.maxZ + 0.15);
+  }
+
+  // --- Plaza-edge parapet (x -11.65..10, behind the entrance wall): a
+  // Mäuerchen-style wall (0.8 m above the plateau floor, same look/height as
+  // the walkway end walls built below) replacing what used to be a thin
+  // hedge here. Centered exactly on the plateau's ground-texture change line
+  // (z = PLATEAU.maxZ = -21, i.e. p.maxZ) rather than offset south of it like
+  // the old hedge, which left a visible sliver of paving showing south of
+  // the planting. Butts flush against the entrance wall's south jamb at its
+  // west end (x=-11.65, matching entrance.js's south-jamb collider) and
+  // against the walkway's west end-wall at its east end (x=10, matching
+  // GROTTO_WALK.minX) — one continuous barrier line, no corner gaps. The
+  // retaining wall face at z=-21 (holding up the plateau itself) is
+  // untouched; this only adds the parapet-level barrier on top of it.
+  {
+    const plazaWallMinX = -11.65, plazaWallMaxX = GROTTO_WALK.minX;   // -11.65..10
+    const pw = plazaWallMaxX - plazaWallMinX, pCx = (plazaWallMinX + plazaWallMaxX) / 2;
+    const pH = 0.8, pThick = 0.25, pZ = GROTTO_WALK.minZ;   // -21.05; top at world y = deckH + pH = 2.3
+    const plazaMat = pbr({ dir: 'assets/textures/concrete', color: 0x9a958c, repeat: [pw / 5, 1], roughness: 0.9 });
+    const plazaWall = new THREE.Mesh(new THREE.BoxGeometry(pw, pH + parapetSink, pThick), plazaMat);
+    plazaWall.position.set(pCx, deckH + pH / 2 - parapetSink / 2, pZ);
+    plazaWall.castShadow = true; plazaWall.receiveShadow = true;
+    scene.add(plazaWall);
+    addBox(plazaWallMinX, pZ - pThick / 2, plazaWallMaxX, pZ + pThick / 2);
   }
 
   // --- East retaining wall (plateau's east edge, facing the courts) ------
@@ -246,7 +291,7 @@ export function buildTerracePlateau(scene) {
     stepWall.position.set(GROTTO_WALK.minX, deckH / 2, gcz);
     stepWall.castShadow = true; stepWall.receiveShadow = true;
     scene.add(stepWall);
-    addBox(9.7, -21, 10.3, -18.3);
+    addBox(9.7, GROTTO_WALK.minZ, 10.3, GROTTO_WALK.maxZ);
 
     // East end cap: the "East retaining wall" built above already blocks
     // movement past x=48 (its collider spans the full z depth, including
@@ -258,11 +303,27 @@ export function buildTerracePlateau(scene) {
     // its own collider is added too, redundant with the east wall's but
     // harmless (belt-and-braces for this specific strip).
     const capH = 0.8;
-    const cap = new THREE.Mesh(new THREE.BoxGeometry(0.3, capH, gd), wallMat);
-    cap.position.set(GROTTO_WALK.maxX, deckH + capH / 2, gcz);
+    const cap = new THREE.Mesh(new THREE.BoxGeometry(0.3, capH + parapetSink, gd), wallMat);
+    cap.position.set(GROTTO_WALK.maxX, deckH + capH / 2 - parapetSink / 2, gcz);
     cap.castShadow = true; cap.receiveShadow = true;
     scene.add(cap);
     addBox(GROTTO_WALK.maxX - 0.3, GROTTO_WALK.minZ, GROTTO_WALK.maxX + 0.35, GROTTO_WALK.maxZ);
+
+    // West end cap: mirrors the east end cap above. The "stepWall" built
+    // earlier in this block already closes the cliff at x=10 down to ground
+    // level, but its top is flush with the walkway floor (both at deckH),
+    // so — same as the east end before its cap was added — walking west
+    // along the walkway reads as an open edge with no barrier above floor
+    // level. This low parapet (matching the Grotto Mäuerchen: 0.8 m, same
+    // concrete) closes that visual gap. It spans z -21..-18.3 only (the
+    // walkway's own footprint, same as the existing fall collider at x=10
+    // added above), so it does NOT block the plaza->walkway route, which
+    // crosses x=10 further north (z<=-21, outside this span).
+    const westCap = new THREE.Mesh(new THREE.BoxGeometry(0.3, capH + parapetSink, gd), wallMat);
+    westCap.position.set(GROTTO_WALK.minX, deckH + capH / 2 - parapetSink / 2, gcz);
+    westCap.castShadow = true; westCap.receiveShadow = true;
+    scene.add(westCap);
+    addBox(GROTTO_WALK.minX - 0.35, GROTTO_WALK.minZ, GROTTO_WALK.minX + 0.3, GROTTO_WALK.maxZ);
   }
 
   // West / north edge colliders (forest side / clubhouse-back side stay solid boundaries).
@@ -688,19 +749,29 @@ export function buildRestaurant(scene) {
 
   // Low wall (Mäuerchen) separating the Grotto terrace from the walkway
   // that now runs along the court fence (the Grotto walkway extension in
-  // buildTerracePlateau, x 10..48, z -21..-18.3): a "natural boundary", not
-  // a real barrier, so it stays low (0.8 m) and gets a 2 m gap at its own
-  // west end (x 12..14) as the terrace's pedestrian entrance from the
-  // walkway/plaza side.
+  // buildTerracePlateau, x 10..48, z -21.05..-18.3): a "natural boundary",
+  // not a real barrier, so it stays low (0.8 m). It runs the full x 10..48
+  // span except a single 1.6 m gap (x 11.6..13.2) as the terrace's
+  // pedestrian entrance from the walkway/plaza side. Centered on z=-21.05 —
+  // the SAME centerline as the plaza-edge parapet built in
+  // buildTerracePlateau (GROTTO_WALK.minZ) — so the whole run from the
+  // entrance wall to the Mäuerchen's east end (x=44) reads as one
+  // continuous straight parapet, only interrupted by this entrance gap; at
+  // x=10 the walkway's west end-cap wall runs south from this same line to
+  // close the walkway (see buildTerracePlateau).
   {
-    const mMinX = 14, mMaxX = 44, mH = 0.8, mThick = 0.25, mZ = -21.5;
-    const mCx = (mMinX + mMaxX) / 2, mW = mMaxX - mMinX;
+    const mSegments = [ { minX: 10, maxX: 11.6 }, { minX: 13.2, maxX: 44 } ];
+    const mH = 0.8, mThick = 0.25, mZ = GROTTO_WALK.minZ;   // -21.05
+    const mSink = 0.1;   // embed the base so it never reads as floating (see parapetSink above)
     const mMat = pbr({ dir: 'assets/textures/concrete', color: 0x9a958c, repeat: [6, 1], roughness: 0.9 });
-    const mauerchen = new THREE.Mesh(new THREE.BoxGeometry(mW, mH, mThick), mMat);
-    mauerchen.position.set(mCx, baseY + mH / 2, mZ);
-    mauerchen.castShadow = true; mauerchen.receiveShadow = true;
-    scene.add(mauerchen);
-    addBox(mMinX, mZ - mThick / 2, mMaxX, mZ + mThick / 2);
+    for (const seg of mSegments) {
+      const mW = seg.maxX - seg.minX, mCx = (seg.minX + seg.maxX) / 2;
+      const mauerchen = new THREE.Mesh(new THREE.BoxGeometry(mW, mH + mSink, mThick), mMat);
+      mauerchen.position.set(mCx, baseY + mH / 2 - mSink / 2, mZ);
+      mauerchen.castShadow = true; mauerchen.receiveShadow = true;
+      scene.add(mauerchen);
+      addBox(seg.minX, mZ - mThick / 2, seg.maxX, mZ + mThick / 2);
+    }
   }
 
   // Restaurant terrace (x 10..40): enlarged with the walkway move — an

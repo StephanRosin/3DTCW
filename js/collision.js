@@ -32,7 +32,11 @@ export const LAWN_STAIR = { minX: -28.2, maxX: -27.0 };
 // so the walkway runs flush with the fence instead of stepping down to
 // ground first. Same height as the plateau (1.5) — no ramp, just a deeper
 // footprint; see buildTerracePlateau for the extra deck/wall geometry.
-export const GROTTO_WALK = { minX: 10, maxX: 48, minZ: -21, maxZ: -18.3, h: 1.5 };
+// minZ (-21.05) is the parapet centerline shared with the plaza-edge wall
+// and the Grotto Mäuerchen, so the whole entrance->walkway->terrace parapet
+// reads as one continuous straight line (see buildTerracePlateau/
+// buildRestaurant for the wall segments built along it).
+export const GROTTO_WALK = { minX: 10, maxX: 48, minZ: -21.05, maxZ: -18.3, h: 1.5 };
 
 export function groundHeight(x, z) {
   const p = PLATEAU;
