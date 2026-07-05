@@ -119,3 +119,9 @@ Ball-Physik, Tag/Nacht-Umschalter, Backend jeglicher Art.
 - Der Eingangsbereich (Steinbogen) liegt ebenfalls auf dem Plateau; vom Weg
   blickt man auf die Plätze hinunter (wie Foto TCW6).
 - **Keine Schiedsrichterstühle** auf den Plätzen (gestrichen).
+- Bänke: ohne Rückenlehne, zentriert im Korridor zwischen den Courts,
+  Länge parallel zur Court-Längsachse; roter Schirm daneben.
+- Terrasse zwischen Court 1 und 2; Klubhaus dahinter, von Court 1 bis 3;
+  Barriere hinter dem Klubhaus (Bewegungsraum: Terrasse, Treppen, Courts).
+- Werbebanden ohne Dummy-Sponsoren: nur „Waidcup 2026"-Banner, TCW-Logos
+  oder das Waidcup-Logo (waidcup.png) als Banner.
