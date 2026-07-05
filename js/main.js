@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { createScene, createSky, createLights, createGround } from './world.js';
 import { buildCourtRow, ENC } from './tennis.js';
-import { buildForest, buildTerracePlateau } from './props.js';
+import { buildForest, buildTerracePlateau, buildClubhouse } from './props.js';
 import { createPlayer } from './player.js';
 import { groundHeight } from './collision.js';
 
@@ -36,6 +36,9 @@ const { courtX } = buildCourtRow(scene);
 
 // --- Terrace plateau (Task 6): ground-height model + grandstand steps ---
 buildTerracePlateau(scene);
+
+// --- Clubhouse + pergola terrace (Task 7) ---
+buildClubhouse(scene);
 
 // --- Forest ring ---
 buildForest(scene, 440, 80, 235);

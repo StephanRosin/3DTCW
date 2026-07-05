@@ -1,14 +1,14 @@
 import * as THREE from 'three';
 import { addBox, addWall, PLATEAU, RAMPS } from './collision.js';
-import { pbr } from './textures.js';
+import { pbr, loadTex } from './textures.js';
 
 export const wood = (c = 0x8a5a33) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.85, metalness: 0 });
 export const metalDark = new THREE.MeshStandardMaterial({ color: 0x2b2f33, roughness: 0.5, metalness: 0.6 });
 
 /** A simple café table (round top on a stem). Returns world position of the top. */
-export function buildTable(scene, x, z, color = 0xf3f1ea) {
+export function buildTable(scene, x, z, color = 0xf3f1ea, y = 0) {
   const g = new THREE.Group();
-  g.position.set(x, 0, z);
+  g.position.set(x, y, z);
   const topMat = new THREE.MeshStandardMaterial({ color, roughness: 0.6, metalness: 0.1 });
   const top = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.05, 20), topMat);
   top.position.y = 0.72; top.castShadow = true; g.add(top);
@@ -18,13 +18,13 @@ export function buildTable(scene, x, z, color = 0xf3f1ea) {
   foot.position.y = 0.02; g.add(foot);
   scene.add(g);
   addBox(x - 0.4, z - 0.4, x + 0.4, z + 0.4);
-  return new THREE.Vector3(x, 0.72, z);
+  return new THREE.Vector3(x, y + 0.72, z);
 }
 
 /** A simple chair. */
-export function buildChair(scene, x, z, rotY = 0, color = 0x3a4a5a) {
+export function buildChair(scene, x, z, rotY = 0, color = 0x3a4a5a, y = 0) {
   const g = new THREE.Group();
-  g.position.set(x, 0, z);
+  g.position.set(x, y, z);
   g.rotation.y = rotY;
   const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.7, metalness: 0.1 });
   const seat = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.05, 0.44), mat);
@@ -40,9 +40,9 @@ export function buildChair(scene, x, z, rotY = 0, color = 0x3a4a5a) {
 }
 
 /** A parasol / umbrella. */
-export function buildUmbrella(scene, x, z, color = 0x2f6fb0) {
+export function buildUmbrella(scene, x, z, color = 0x2f6fb0, y = 0) {
   const g = new THREE.Group();
-  g.position.set(x, 0, z);
+  g.position.set(x, y, z);
   const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.3, 10), wood(0x6b6b6b));
   pole.position.y = 1.15; g.add(pole);
   // Rounded canopy: a shallow polar cap of a sphere (dome), replacing the old cone shape.
@@ -103,10 +103,10 @@ export function buildBenchBackless(scene, x, z, rotY = 0, y = 0) {
 }
 
 /** A trimmed hedge (box). */
-export function buildHedge(scene, x, z, w, d, h = 0.8) {
+export function buildHedge(scene, x, z, w, d, h = 0.8, y = 0) {
   const mat = new THREE.MeshStandardMaterial({ color: 0x3d6b2e, roughness: 1 });
   const hedge = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
-  hedge.position.set(x, h / 2, z);
+  hedge.position.set(x, y + h / 2, z);
   hedge.castShadow = true; hedge.receiveShadow = true;
   scene.add(hedge);
   addBox(x - w / 2, z - d / 2, x + w / 2, z + d / 2);
@@ -199,70 +199,180 @@ export function buildTerracePlateau(scene) {
 }
 
 /**
- * The clubhouse building with a slatted wooden pergola over the terrace.
- * `southZ` is the front (terrace) edge line. Building sits behind it.
- * Returns the terrace centre so the caller can furnish it.
+ * A slatted wooden pergola with hanging vine greenery, built as a group so
+ * it can be dropped onto the plateau (`y` = base offset, e.g. PLATEAU.h).
  */
-export function buildClubhouse(scene, centerX, southZ) {
-  const bw = 16, bd = 8, bh = 3.4;
-  const bz = southZ + bd / 2 + 0.2;   // building further from courts (+Z)
+function buildPergola(scene, cx, cz, w, d, y = 0) {
+  const g = new THREE.Group();
+  g.position.set(cx, y, cz);
+  scene.add(g);
 
-  const wallMat = new THREE.MeshStandardMaterial({ color: 0xe8e2d4, roughness: 0.9 });
-  const building = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), wallMat);
-  building.position.set(centerX, bh / 2, bz);
-  building.castShadow = true; building.receiveShadow = true;
-  scene.add(building);
-  addBox(centerX - bw / 2, bz - bd / 2, centerX + bw / 2, bz + bd / 2);
-
-  // Flat-ish roof slab
-  const roof = new THREE.Mesh(new THREE.BoxGeometry(bw + 0.6, 0.3, bd + 0.6),
-    new THREE.MeshStandardMaterial({ color: 0x5a4636, roughness: 0.8 }));
-  roof.position.set(centerX, bh + 0.15, bz);
-  roof.castShadow = true; scene.add(roof);
-
-  // Windows / door strip facing the terrace (-Z face)
-  const glassMat = new THREE.MeshStandardMaterial({ color: 0x6fa0c8, roughness: 0.2, metalness: 0.3, transparent: true, opacity: 0.65 });
-  for (let i = -1; i <= 1; i++) {
-    const win = new THREE.Mesh(new THREE.BoxGeometry(3.2, 1.6, 0.1), glassMat);
-    win.position.set(centerX + i * 4.4, 1.7, bz - bd / 2 - 0.02);
-    scene.add(win);
-  }
-
-  // Pergola over the terrace (between building and courts).
-  const perW = 15, perD = 6;
-  const perZ = southZ - perD / 2 - 0.3;   // toward courts (-Z from front line)
-  buildPergola(scene, centerX, perZ, perW, perD);
-
-  return new THREE.Vector3(centerX, 0, perZ);
-}
-
-function buildPergola(scene, cx, cz, w, d) {
   const postMat = wood(0x8a5a33);
   const beamMat = wood(0x9a6a40);
+  const vineMat = new THREE.MeshStandardMaterial({ color: 0x2e5c28, roughness: 1, flatShading: true });
   const hw = w / 2, hd = d / 2, top = 2.6;
 
-  // Corner + mid posts
-  const postXs = [-hw, -hw / 2, 0, hw / 2, hw];
-  for (const px of [postXs[0], postXs[2], postXs[4]]) {
+  // Corner + mid posts (world-space colliders; the meshes hang off the group).
+  const postXZ = [];
+  for (const px of [-hw, 0, hw]) {
     for (const pz of [-hd, hd]) {
       const post = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, top, 10), postMat);
-      post.position.set(cx + px, top / 2, cz + pz);
-      post.castShadow = true; scene.add(post);
+      post.position.set(px, top / 2, pz);
+      post.castShadow = true; g.add(post);
       addBox(cx + px - 0.15, cz + pz - 0.15, cx + px + 0.15, cz + pz + 0.15);
+      postXZ.push([px, pz]);
     }
   }
   // Perimeter beams (long axis)
   for (const pz of [-hd, hd]) {
     const beam = new THREE.Mesh(new THREE.BoxGeometry(w, 0.14, 0.14), beamMat);
-    beam.position.set(cx, top, cz + pz); beam.castShadow = true; scene.add(beam);
+    beam.position.set(0, top, pz); beam.castShadow = true; g.add(beam);
   }
   // Cross slats
   const n = Math.floor(w / 0.5);
   for (let i = 0; i <= n; i++) {
     const x = -hw + (i / n) * w;
     const slat = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.1, d + 0.2), beamMat);
-    slat.position.set(cx + x, top + 0.08, cz); scene.add(slat);
+    slat.position.set(x, top + 0.08, 0); g.add(slat);
   }
+
+  // Vine greenery: a leafy cluster at each post head...
+  for (const [px, pz] of postXZ) {
+    const cluster = new THREE.Mesh(new THREE.IcosahedronGeometry(0.42, 0), vineMat);
+    cluster.position.set(px, top + 0.12, pz);
+    cluster.castShadow = true; g.add(cluster);
+  }
+  // ...plus flattened leaf blobs draped along the top slats.
+  const vineCount = 9;
+  for (let i = 0; i < vineCount; i++) {
+    const t = i / (vineCount - 1);
+    const x = -hw + t * w;
+    const pz = (i % 2 === 0 ? -hd * 0.55 : hd * 0.55);
+    const blob = new THREE.Mesh(new THREE.SphereGeometry(0.32, 8, 6), vineMat);
+    blob.scale.y = 0.4;
+    blob.position.set(x, top + 0.22, pz);
+    g.add(blob);
+  }
+  return g;
+}
+
+/**
+ * A simple wooden railing (posts + 2 rails) with a thin collider behind it —
+ * used as the barrier at the plateau's north edge, behind the clubhouse.
+ */
+function buildRailing(scene, minX, maxX, z, baseY) {
+  const postMat = wood(0x6b4a2e);
+  const railMat = wood(0x8a5a33);
+  const span = maxX - minX;
+  const n = Math.max(1, Math.round(span / 3));
+  const railH = 1.0;
+
+  for (let i = 0; i <= n; i++) {
+    const x = minX + (i / n) * span;
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, railH, 8), postMat);
+    post.position.set(x, baseY + railH / 2, z);
+    post.castShadow = true; scene.add(post);
+  }
+  for (const ry of [0.5, 1.0]) {
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(span, 0.08, 0.08), railMat);
+    rail.position.set((minX + maxX) / 2, baseY + ry, z);
+    scene.add(rail);
+  }
+  addBox(minX, z - 0.3, maxX, z + 0.3);
+}
+
+/**
+ * The clubhouse (Task 7): a 42x7 m dark wood-slat building spanning courts
+ * 1-3, sat on the terrace plateau, with a flat overhanging roof, a white
+ * window band + TCW logo rondell on the south (court-facing) facade, a
+ * vine-covered pergola over the terrace above the courts-1/2 stairs, café
+ * furniture, stair-mouth planters, and a wooden barrier along the plateau's
+ * back (north) edge.
+ */
+export function buildClubhouse(scene) {
+  const p = PLATEAU;
+  const baseY = p.h;   // 1.5 — plateau top
+
+  // --- Building shell -------------------------------------------------
+  const bw = 42, bd = 7, bh = 3.6;
+  const bx = -23.4, bz = -32;
+  const southZ = bz + bd / 2;   // -28.5 (facing the courts, +Z)
+  const northZ = bz - bd / 2;   // -35.5 (back of the building)
+
+  const facadeMat = pbr({ dir: 'assets/textures/wood', color: 0x4a3826, repeat: [8, 1.5], roughness: 0.85 });
+  const building = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), facadeMat);
+  building.position.set(bx, baseY + bh / 2, bz);
+  building.castShadow = true; building.receiveShadow = true;
+  scene.add(building);
+  addBox(bx - bw / 2, northZ, bx + bw / 2, southZ);
+
+  // Flat overhanging roof
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(bw + 1, 0.25, bd + 1),
+    new THREE.MeshStandardMaterial({ color: 0x3c3630, roughness: 0.8 }));
+  roof.position.set(bx, 5.2, bz);
+  roof.castShadow = true; scene.add(roof);
+
+  // White window band along the south facade (local y 1.6..2.6 -> world 3.1..4.1)
+  const bandMat = new THREE.MeshStandardMaterial({ color: 0xf4f2ec, roughness: 0.6, emissive: 0x2a281f, emissiveIntensity: 0.12 });
+  const band = new THREE.Mesh(new THREE.PlaneGeometry(38, 1.0), bandMat);
+  band.position.set(bx, baseY + 2.1, southZ + 0.02);
+  scene.add(band);
+
+  // Darker glass insets over the band
+  const glassMat = new THREE.MeshStandardMaterial({ color: 0x6fa0c8, roughness: 0.2, metalness: 0.3, transparent: true, opacity: 0.65 });
+  const insetCount = 7, insetW = 3.6, bandW = 38;
+  for (let i = 0; i < insetCount; i++) {
+    const t = (i + 0.5) / insetCount - 0.5;
+    const inset = new THREE.Mesh(new THREE.PlaneGeometry(insetW, 0.8), glassMat);
+    inset.position.set(bx + t * bandW, baseY + 2.1, southZ + 0.03);
+    scene.add(inset);
+  }
+
+  // TCW logo rondell on the south facade (faces +Z toward the courts, no rotation needed)
+  const logoMat = new THREE.MeshStandardMaterial({ color: 0x26418f, roughness: 0.4 });
+  logoMat.map = loadTex('assets/logos/tcw-logo.jpg', {
+    srgb: true,
+    onError: () => { logoMat.map = null; logoMat.needsUpdate = true; },
+  });
+  const logo = new THREE.Mesh(new THREE.CircleGeometry(0.7, 32), logoMat);
+  logo.position.set(-23.4, baseY + 1.9, southZ + 0.06);
+  scene.add(logo);
+
+  // --- Pergola terrace above the courts-1/2 stairs ---------------------
+  buildPergola(scene, -31.2, -26, 14, 5, baseY);
+
+  // Café tables + chairs (kept out of x -33..-29.5 so the stair-mouth
+  // corridor at x=-31.2 stays clear for z > -23).
+  const chairColor = 0x3a4a5a;
+  buildTable(scene, -36, -27, 0xf3f1ea, baseY);
+  buildChair(scene, -36, -27.7, 0, chairColor, baseY);
+  buildChair(scene, -36, -26.3, Math.PI, chairColor, baseY);
+  buildChair(scene, -36.7, -27, Math.PI / 2, chairColor, baseY);
+
+  buildTable(scene, -36, -24, 0xf3f1ea, baseY);
+  buildChair(scene, -36, -24.7, 0, chairColor, baseY);
+  buildChair(scene, -36, -23.3, Math.PI, chairColor, baseY);
+
+  buildTable(scene, -27, -27, 0xf3f1ea, baseY);
+  buildChair(scene, -27, -27.7, 0, chairColor, baseY);
+  buildChair(scene, -27, -26.3, Math.PI, chairColor, baseY);
+  buildChair(scene, -26.3, -27, -Math.PI / 2, chairColor, baseY);
+
+  buildTable(scene, -27, -24, 0xf3f1ea, baseY);
+  buildChair(scene, -27, -24.7, 0, chairColor, baseY);
+  buildChair(scene, -27, -23.3, Math.PI, chairColor, baseY);
+
+  // Red umbrellas
+  buildUmbrella(scene, -36, -24, 0xc03030, baseY);
+  buildUmbrella(scene, -27, -24, 0xc03030, baseY);
+  buildUmbrella(scene, -31.2, -27, 0xc03030, baseY);
+
+  // Planter hedges flanking the stair mouth
+  buildHedge(scene, -34.5, -21.8, 2.5, 0.8, 0.5, baseY);
+  buildHedge(scene, -27.9, -21.8, 2.5, 0.8, 0.5, baseY);
+
+  // --- Barrier behind the clubhouse (plateau north edge) ---------------
+  buildRailing(scene, Math.max(p.minX, -48), 8, -36.5, baseY);
 }
 
 /**
