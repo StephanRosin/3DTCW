@@ -19,7 +19,7 @@ const PITCH_LIMIT = Math.PI / 2 - 0.05;
  */
 export function createPlayer(camera, dom, startPos, lookAt) {
   camera.rotation.order = 'YXZ';
-  camera.position.set(startPos.x, EYE_HEIGHT, startPos.z);
+  camera.position.set(startPos.x, EYE_HEIGHT + groundHeight(startPos.x, startPos.z), startPos.z);
 
   let yaw = 0, pitch = 0;
   if (lookAt) {

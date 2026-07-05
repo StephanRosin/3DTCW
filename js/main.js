@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { createScene, createSky, createLights, createGround } from './world.js';
-import { buildCourtRow, ENC } from './tennis.js';
-import { buildForest, buildTerracePlateau, buildClubhouse } from './props.js';
+import { buildCourtRow } from './tennis.js';
+import { buildForest, buildTerracePlateau, buildClubhouse, buildRestaurant } from './props.js';
+import { buildEntrance } from './entrance.js';
 import { createPlayer } from './player.js';
 import { groundHeight } from './collision.js';
 
@@ -40,13 +41,16 @@ buildTerracePlateau(scene);
 // --- Clubhouse + pergola terrace (Task 7) ---
 buildClubhouse(scene);
 
+// --- Restaurant: second long building spanning courts 4-6, east of the clubhouse ---
+buildRestaurant(scene);
+
+// --- Entrance portal: stone arch, TCW logo, Waidcup flag, forecourt plaza ---
+const { startPos, lookTarget } = buildEntrance(scene);
+
 // --- Forest ring ---
 buildForest(scene, 440, 80, 235);
 
 // --- Player ---
-// Provisional start north of the courts, looking across the row (repositioned in Task 6/7).
-const startPos = new THREE.Vector3(0, 0, ENC.minZ - 6);
-const lookTarget = new THREE.Vector3(0, 0, 0);
 const player = createPlayer(camera, renderer.domElement, startPos, lookTarget);
 scene.add(camera);
 

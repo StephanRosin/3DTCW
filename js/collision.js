@@ -7,8 +7,8 @@ export const colliders = [];
 // North of the courts, a raised terrace plateau carries the future clubhouse
 // (Task 7) and entrance walkway (Task 8). Two ramp zones (aligned with the
 // north-fence gates) let players walk up/down between plateau and ground.
-export const PLATEAU = { minX: -38, maxX: 75, minZ: -40, maxZ: -21, h: 1.5, stepDepth: 2.4 };
-export const RAMPS = [ { minX: -38, maxX: 8 }, { minX: 37, maxX: 43 } ];
+export const PLATEAU = { minX: -48, maxX: 48, minZ: -48, maxZ: -21, h: 1.5, stepDepth: 2.4 };
+export const RAMPS = [ { minX: -38, maxX: 8 } ];
 
 export function groundHeight(x, z) {
   const p = PLATEAU;

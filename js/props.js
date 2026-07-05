@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { addBox, addWall, PLATEAU, RAMPS } from './collision.js';
+import { addBox, PLATEAU, RAMPS } from './collision.js';
 import { pbr, loadTex } from './textures.js';
 
 export const wood = (c = 0x8a5a33) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.85, metalness: 0 });
@@ -113,39 +113,36 @@ export function buildHedge(scene, x, z, w, d, h = 0.8, y = 0) {
 }
 
 /**
- * The raised terrace plateau north of the courts (Task 6): a solid platform
- * (+1.5 m) that will carry the future clubhouse/terrace (Task 7) and the
- * entrance walkway (Task 8). Its south edge has a concrete retaining wall
- * with a low hedge on top, except in the two RAMPS X-ranges where sitting
- * steps (grandstand/staircase) lead down to ground level — those are the
- * walkable ramps aligned with the north-fence gates; `groundHeight()` in
- * collision.js provides the smooth Y ramp players actually walk on.
+ * The raised terrace plateau north of the courts (deepened): a solid
+ * platform (+1.5 m) carrying the clubhouse, entrance portal and terrace
+ * furniture. Its south edge has a concrete retaining wall with a low hedge
+ * on top, except in the RAMPS X-range where sitting steps (grandstand)
+ * lead down to ground level — the walkable ramp aligned with the west
+ * north-fence gate; `groundHeight()` in collision.js provides the smooth Y
+ * ramp players actually walk on. The plateau is bounded on the west, north
+ * and east by thin colliders (forest side / clubhouse back / court-side
+ * retaining wall); the south edge is either the ramp or the retaining wall.
  */
 export function buildTerracePlateau(scene) {
   const p = PLATEAU;
   const deckH = p.h;                 // 1.5
-  const splitX = 8;                  // west = terrace paving, east = plain concrete deck (path in Task 8)
+  const cx = (p.minX + p.maxX) / 2;
   const cz = (p.minZ + p.maxZ) / 2;
+  const width = p.maxX - p.minX;
   const depth = p.maxZ - p.minZ;
 
-  // --- Top deck: west (paving) + east (plain concrete-colour) -------------
-  const pavingTop = pbr({ dir: 'assets/textures/paving', color: 0xb7b0a0, repeat: [15, 6], roughness: 0.95 });
+  // --- Top deck: paving over the whole plateau -----------------------------
+  const pavingTop = pbr({ dir: 'assets/textures/paving', color: 0xb7b0a0, repeat: [18, 9], roughness: 0.95 });
   const concreteSide = pbr({ dir: 'assets/textures/concrete', color: 0x9a958c, repeat: [20, 1.5], roughness: 0.9 });
-  const concreteTop = new THREE.MeshStandardMaterial({ color: 0x9a958c, roughness: 0.9 });
 
-  function deckBox(minX, maxX, topMat) {
-    const w = maxX - minX;
-    const geo = new THREE.BoxGeometry(w, deckH, depth);
-    // Face order: +x, -x, +y (top), -y (bottom), +z, -z
-    const mesh = new THREE.Mesh(geo, [concreteSide, concreteSide, topMat, concreteSide, concreteSide, concreteSide]);
-    mesh.position.set((minX + maxX) / 2, deckH / 2, cz);
-    mesh.castShadow = true; mesh.receiveShadow = true;
-    scene.add(mesh);
-  }
-  deckBox(p.minX, splitX, pavingTop);
-  deckBox(splitX, p.maxX, concreteTop);
+  const deckGeo = new THREE.BoxGeometry(width, deckH, depth);
+  // Face order: +x, -x, +y (top), -y (bottom), +z, -z
+  const deck = new THREE.Mesh(deckGeo, [concreteSide, concreteSide, pavingTop, concreteSide, concreteSide, concreteSide]);
+  deck.position.set(cx, deckH / 2, cz);
+  deck.castShadow = true; deck.receiveShadow = true;
+  scene.add(deck);
 
-  // --- South retaining wall + hedge, skipping the two ramp X-ranges -------
+  // --- South retaining wall + hedge, skipping the ramp X-range -------------
   const ramps = [...RAMPS].sort((a, b) => a.minX - b.minX);
   const wallSegments = [];
   let cursor = p.minX;
@@ -173,14 +170,28 @@ export function buildTerracePlateau(scene) {
     hedge.castShadow = true; hedge.receiveShadow = true;
     scene.add(hedge);
 
-    // Thin collider along the south edge/railing (blocks players from the north side too — intended).
-    addBox(seg.minX, p.maxZ - 0.3, seg.maxX, p.maxZ + 0.1);
+    // Thin collider along the south edge/railing (fixed sliver: hugs p.maxZ).
+    addBox(seg.minX, p.maxZ - 0.3, seg.maxX, p.maxZ + 0.15);
   }
 
-  // West edge collider (north fence/forest side stays open).
-  addWall(p.minX, p.minZ, p.minX, p.maxZ, 0.3);
+  // --- East retaining wall (plateau's east edge, facing the courts) ------
+  const eastWallH = 1.5;
+  const eastWall = new THREE.Mesh(new THREE.BoxGeometry(0.3, eastWallH, depth), wallMat);
+  eastWall.position.set(p.maxX, eastWallH / 2, cz);
+  eastWall.castShadow = true; eastWall.receiveShadow = true;
+  scene.add(eastWall);
+  addBox(p.maxX - 0.3, p.minZ, p.maxX + 0.35, p.maxZ);
 
-  // --- Sitting steps (tribune west / staircase east) in both RAMPS zones --
+  const eastHedge = new THREE.Mesh(new THREE.BoxGeometry(0.5, hedgeH, depth), hedgeMat);
+  eastHedge.position.set(p.maxX, eastWallH + hedgeH / 2, cz);
+  eastHedge.castShadow = true; eastHedge.receiveShadow = true;
+  scene.add(eastHedge);
+
+  // West / north edge colliders (forest side / clubhouse-back side stay solid boundaries).
+  addBox(p.minX - 0.3, p.minZ, p.minX + 0.3, p.maxZ);
+  addBox(p.minX, p.minZ - 0.3, p.maxX, p.minZ + 0.3);
+
+  // --- Sitting steps (tribune) in the single RAMPS zone --------------------
   const woodMat = pbr({ dir: 'assets/textures/wood', color: 0x8a5a33, repeat: [6, 1], roughness: 0.85 });
   const stepHeights = [1.375, 1.125, 0.875, 0.625, 0.375, 0.125];
   const stepDepth = 0.4, stepH = 0.25;
@@ -282,40 +293,37 @@ function buildRailing(scene, minX, maxX, z, baseY) {
 }
 
 /**
- * The clubhouse (Task 7): a 42x7 m dark wood-slat building spanning courts
- * 1-3, sat on the terrace plateau, with a flat overhanging roof, a white
- * window band + TCW logo rondell on the south (court-facing) facade, a
- * vine-covered pergola over the terrace above the courts-1/2 stairs, café
- * furniture, stair-mouth planters, and a wooden barrier along the plateau's
- * back (north) edge.
+ * Shared shell for the two long terrace-side buildings (clubhouse and
+ * restaurant): a 42x7 m dark wood-slat block with a flat overhanging roof
+ * and a white window band + glass insets on the south (court-facing)
+ * facade. `opts.signage(scene, cx, baseY, southZ)` adds whatever goes on
+ * the facade beyond the window band (a logo rondell, a sign board, ...).
+ * Returns the footprint so the caller can add its own furniture/terrace.
  */
-export function buildClubhouse(scene) {
+function buildLongBuilding(scene, cx, cz, { signage } = {}) {
   const p = PLATEAU;
   const baseY = p.h;   // 1.5 — plateau top
-
-  // --- Building shell -------------------------------------------------
   const bw = 42, bd = 7, bh = 3.6;
-  const bx = -23.4, bz = -32;
-  const southZ = bz + bd / 2;   // -28.5 (facing the courts, +Z)
-  const northZ = bz - bd / 2;   // -35.5 (back of the building)
+  const southZ = cz + bd / 2;   // facing the courts, +Z
+  const northZ = cz - bd / 2;   // back of the building
 
   const facadeMat = pbr({ dir: 'assets/textures/wood', color: 0x4a3826, repeat: [8, 1.5], roughness: 0.85 });
   const building = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), facadeMat);
-  building.position.set(bx, baseY + bh / 2, bz);
+  building.position.set(cx, baseY + bh / 2, cz);
   building.castShadow = true; building.receiveShadow = true;
   scene.add(building);
-  addBox(bx - bw / 2, northZ, bx + bw / 2, southZ);
+  addBox(cx - bw / 2, northZ, cx + bw / 2, southZ);
 
   // Flat overhanging roof
   const roof = new THREE.Mesh(new THREE.BoxGeometry(bw + 1, 0.25, bd + 1),
     new THREE.MeshStandardMaterial({ color: 0x3c3630, roughness: 0.8 }));
-  roof.position.set(bx, 5.2, bz);
+  roof.position.set(cx, 5.2, cz);
   roof.castShadow = true; scene.add(roof);
 
   // White window band along the south facade (local y 1.6..2.6 -> world 3.1..4.1)
   const bandMat = new THREE.MeshStandardMaterial({ color: 0xf4f2ec, roughness: 0.6, emissive: 0x2a281f, emissiveIntensity: 0.12 });
   const band = new THREE.Mesh(new THREE.PlaneGeometry(38, 1.0), bandMat);
-  band.position.set(bx, baseY + 2.1, southZ + 0.02);
+  band.position.set(cx, baseY + 2.1, southZ + 0.02);
   scene.add(band);
 
   // Darker glass insets over the band
@@ -324,55 +332,142 @@ export function buildClubhouse(scene) {
   for (let i = 0; i < insetCount; i++) {
     const t = (i + 0.5) / insetCount - 0.5;
     const inset = new THREE.Mesh(new THREE.PlaneGeometry(insetW, 0.8), glassMat);
-    inset.position.set(bx + t * bandW, baseY + 2.1, southZ + 0.03);
+    inset.position.set(cx + t * bandW, baseY + 2.1, southZ + 0.03);
     scene.add(inset);
   }
 
-  // TCW logo rondell on the south facade (faces +Z toward the courts, no rotation needed)
-  const logoMat = new THREE.MeshStandardMaterial({ color: 0x26418f, roughness: 0.4 });
-  logoMat.map = loadTex('assets/logos/tcw-logo.jpg', {
-    srgb: true,
-    onError: () => { logoMat.map = null; logoMat.needsUpdate = true; },
+  signage?.(scene, cx, baseY, southZ);
+
+  return { bw, bd, bh, baseY, southZ, northZ };
+}
+
+/** Draws `text` onto a canvas texture — same recipe as the fence sponsor banners. */
+function signTexture(text, { bg = '#26313a', fg = '#ffffff' } = {}) {
+  const c = document.createElement('canvas');
+  c.width = 1024; c.height = 256;
+  const g = c.getContext('2d');
+  g.fillStyle = bg; g.fillRect(0, 0, 1024, 256);
+  g.strokeStyle = 'rgba(255,255,255,.25)'; g.lineWidth = 6; g.strokeRect(8, 8, 1008, 240);
+  g.fillStyle = fg; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = 'bold 110px Arial'; g.fillText(text, 512, 128);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  return t;
+}
+
+/**
+ * The clubhouse: the shared long-building shell set back at the north edge
+ * of the deepened terrace plateau, with a TCW logo rondell on the south
+ * facade, a vine-covered pergola over the open terrace, café furniture,
+ * stair-mouth planters, and a wooden barrier along the plateau's back
+ * (north) edge.
+ */
+export function buildClubhouse(scene) {
+  const p = PLATEAU;
+  const bx = -23.4, bz = -39.5;
+
+  const { baseY, southZ } = buildLongBuilding(scene, bx, bz, {
+    signage: (scene, cx, baseY, southZ) => {
+      // TCW logo rondell on the south facade (faces +Z toward the courts, no rotation needed)
+      const logoMat = new THREE.MeshStandardMaterial({ color: 0x26418f, roughness: 0.4 });
+      logoMat.map = loadTex('assets/logos/tcw-logo.jpg', {
+        srgb: true,
+        onError: () => { logoMat.map = null; logoMat.needsUpdate = true; },
+      });
+      const logo = new THREE.Mesh(new THREE.CircleGeometry(0.7, 32), logoMat);
+      logo.position.set(cx, baseY + 1.9, southZ + 0.06);
+      scene.add(logo);
+    },
   });
-  const logo = new THREE.Mesh(new THREE.CircleGeometry(0.7, 32), logoMat);
-  logo.position.set(-23.4, baseY + 1.9, southZ + 0.06);
-  scene.add(logo);
 
-  // --- Pergola terrace above the courts-1/2 stairs ---------------------
-  buildPergola(scene, -31.2, -26, 14, 5, baseY);
+  // --- Pergola over the deep terrace ------------------------------------
+  buildPergola(scene, -31.2, -31, 14, 5, baseY);
 
-  // Café tables + chairs (kept out of x -33..-29.5 so the stair-mouth
-  // corridor at x=-31.2 stays clear for z > -23).
+  // Café tables + chairs spread across the deep terrace (z -34..-24,
+  // x -44..-16): some under the pergola, some in the open. Kept out of
+  // x -33..-29.5/z>-23 so the stair-mouth corridor at x=-31.2 stays clear,
+  // and out of the z≈-29 east-west line so the arch walkway (coming from
+  // the entrance at x=-12) keeps a clear meander toward the stairs.
   const chairColor = 0x3a4a5a;
-  buildTable(scene, -36, -27, 0xf3f1ea, baseY);
-  buildChair(scene, -36, -27.7, 0, chairColor, baseY);
-  buildChair(scene, -36, -26.3, Math.PI, chairColor, baseY);
-  buildChair(scene, -36.7, -27, Math.PI / 2, chairColor, baseY);
 
-  buildTable(scene, -36, -24, 0xf3f1ea, baseY);
-  buildChair(scene, -36, -24.7, 0, chairColor, baseY);
-  buildChair(scene, -36, -23.3, Math.PI, chairColor, baseY);
+  // Group 1 — open, west side, near the south (stair) edge.
+  buildTable(scene, -40, -26, 0xf3f1ea, baseY);
+  buildChair(scene, -40, -26.7, 0, chairColor, baseY);
+  buildChair(scene, -40, -25.3, Math.PI, chairColor, baseY);
+  buildChair(scene, -40.7, -26, Math.PI / 2, chairColor, baseY);
 
-  buildTable(scene, -27, -27, 0xf3f1ea, baseY);
-  buildChair(scene, -27, -27.7, 0, chairColor, baseY);
-  buildChair(scene, -27, -26.3, Math.PI, chairColor, baseY);
-  buildChair(scene, -26.3, -27, -Math.PI / 2, chairColor, baseY);
+  // Group 2 — under the pergola, west side, deeper into the terrace.
+  buildTable(scene, -35, -32.5, 0xf3f1ea, baseY);
+  buildChair(scene, -35, -33.2, 0, chairColor, baseY);
+  buildChair(scene, -35, -31.8, Math.PI, chairColor, baseY);
 
-  buildTable(scene, -27, -24, 0xf3f1ea, baseY);
-  buildChair(scene, -27, -24.7, 0, chairColor, baseY);
-  buildChair(scene, -27, -23.3, Math.PI, chairColor, baseY);
+  // Group 3 — under the pergola, east side.
+  buildTable(scene, -25.5, -32, 0xf3f1ea, baseY);
+  buildChair(scene, -25.5, -32.7, 0, chairColor, baseY);
+  buildChair(scene, -25.5, -31.3, Math.PI, chairColor, baseY);
+  buildChair(scene, -24.8, -32, -Math.PI / 2, chairColor, baseY);
 
-  // Red umbrellas
-  buildUmbrella(scene, -36, -24, 0xc03030, baseY);
-  buildUmbrella(scene, -27, -24, 0xc03030, baseY);
-  buildUmbrella(scene, -31.2, -27, 0xc03030, baseY);
+  // Group 4 — open, east side toward the entrance forecourt, near the
+  // south edge (keeps the z≈-29 arch-walkway line clear).
+  buildTable(scene, -19, -25.5, 0xf3f1ea, baseY);
+  buildChair(scene, -19, -26.2, 0, chairColor, baseY);
+  buildChair(scene, -19, -24.8, Math.PI, chairColor, baseY);
+
+  // Red umbrellas (3)
+  buildUmbrella(scene, -40, -26, 0xc03030, baseY);
+  buildUmbrella(scene, -35, -32.5, 0xc03030, baseY);
+  buildUmbrella(scene, -19, -25.5, 0xc03030, baseY);
 
   // Planter hedges flanking the stair mouth
   buildHedge(scene, -34.5, -21.8, 2.5, 0.8, 0.5, baseY);
   buildHedge(scene, -27.9, -21.8, 2.5, 0.8, 0.5, baseY);
 
-  // --- Barrier behind the clubhouse (plateau north edge) ---------------
-  buildRailing(scene, Math.max(p.minX, -48), 8, -36.5, baseY);
+  // --- Barrier behind the clubhouse (plateau north edge; spans the whole
+  // terrace width, so it is only built once here, not again for the
+  // restaurant building to its east). -----------------------------------
+  buildRailing(scene, p.minX, p.maxX, -44, baseY);
+}
+
+/**
+ * The restaurant: a second long building spanning courts 4-6 (mirrored
+ * east of the clubhouse), the shared long-building shell with a
+ * "RESTAURANT" sign board instead of the TCW rondell, and a restaurant
+ * terrace of tables/chairs/umbrellas in front of it. A walking lane along
+ * z≈-29 is kept clear so the forecourt plaza connects through to the
+ * clubhouse terrace.
+ */
+export function buildRestaurant(scene) {
+  const bx = 23.4, bz = -39.5;
+
+  const { baseY, southZ } = buildLongBuilding(scene, bx, bz, {
+    signage: (scene, cx, baseY, southZ) => {
+      const signMat = new THREE.MeshBasicMaterial({ map: signTexture('RESTAURANT'), side: THREE.FrontSide });
+      const sign = new THREE.Mesh(new THREE.PlaneGeometry(4, 0.7), signMat);
+      sign.position.set(cx, baseY + 2.8, southZ + 0.06);
+      scene.add(sign);
+    },
+  });
+
+  // Restaurant terrace (x 10..40, z -35..-24): 8 table groups + 4 red
+  // umbrellas, kept off the z≈-29 walking lane that connects the forecourt
+  // plaza through to the clubhouse terrace.
+  const chairColor = 0x3a4a5a;
+  const northRowZ = -33, southRowZ = -26;
+  const cols = [14, 20, 27, 34];
+
+  for (const x of cols) {
+    for (const z of [northRowZ, southRowZ]) {
+      buildTable(scene, x, z, 0xf3f1ea, baseY);
+      buildChair(scene, x, z - 0.7, 0, chairColor, baseY);
+      buildChair(scene, x, z + 0.7, Math.PI, chairColor, baseY);
+      buildChair(scene, x - 0.7, z, Math.PI / 2, chairColor, baseY);
+    }
+  }
+
+  buildUmbrella(scene, 14, southRowZ, 0xc03030, baseY);
+  buildUmbrella(scene, 20, northRowZ, 0xc03030, baseY);
+  buildUmbrella(scene, 27, southRowZ, 0xc03030, baseY);
+  buildUmbrella(scene, 34, northRowZ, 0xc03030, baseY);
 }
 
 /**
