@@ -108,3 +108,13 @@ Ball-Physik, Tag/Nacht-Umschalter, Backend jeglicher Art.
 - Lokal: statischer Server aus dem Repo-Ordner
   `/home/stephan/Dokumente/TCW3D/3DTCW`, Aufruf `http://localhost:8000`.
 - Commits lokal im geklonten Repo; Push zu GitHub nur auf Wunsch.
+
+## Nachtrag (2026-07-05, User-Feedback während Umsetzung)
+
+- Der Zaun auf der Klubhaus-Seite (Nord) hat KEINEN grünen Windschutz — freie
+  Sicht von Klubhaus/Terrasse auf die Plätze (nur Maschendraht).
+- Klubhaus und Terrasse liegen ca. **1,5 m über Platzniveau** (Hochplateau).
+- Von der Terrasse führt eine **Treppe hinunter zum Eingangstor zwischen
+  Platz 1 und 2** (x ≈ −31,2). Zusätzlich Ost-Treppe zum zweiten Tor (x = +40).
+- Der Eingangsbereich (Steinbogen) liegt ebenfalls auf dem Plateau; vom Weg
+  blickt man auf die Plätze hinunter (wie Foto TCW6).
