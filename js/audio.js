@@ -17,11 +17,13 @@ export function initMusic(camera, scene) {
   camera.add(listener);
 
   const audio = new THREE.PositionalAudio(listener);
-  audio.setRefDistance(10);
+  // refDistance 6: Dämpfung beginnt schon wenige Schritte neben dem
+  // Lautsprecher (bei 10 lag die ganze Terrasse im "volle Lautstärke"-Radius).
+  audio.setRefDistance(6);
   audio.setMaxDistance(38);
   audio.setRolloffFactor(1);
   audio.setDistanceModel('linear');
-  audio.setVolume(0.2);
+  audio.setVolume(0.1);
 
   // Small dark-grey speaker box on the bar wooden wall's south face, near
   // the top (wall spans x -19..-12.4, z=-33.8, height 3.6 -> baseY 1.5).
