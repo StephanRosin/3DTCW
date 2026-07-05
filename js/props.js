@@ -81,6 +81,27 @@ export function buildBench(scene, x, z, rotY = 0) {
   addBox(x - 0.9, z - 0.3, x + 0.9, z + 0.3);
 }
 
+/** A backless wooden bench (seat slats + legs only, no backrest). */
+export function buildBenchBackless(scene, x, z, rotY = 0, y = 0) {
+  const g = new THREE.Group();
+  g.position.set(x, y, z);
+  g.rotation.y = rotY;
+  const m = wood(0x9a6a3f);
+  for (let i = 0; i < 3; i++) {
+    const slat = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.06, 0.12), m);
+    slat.position.set(0, 0.45, -0.18 + i * 0.16); slat.castShadow = true; g.add(slat);
+  }
+  for (const lx of [-0.8, 0.8]) {
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.45, 0.4), wood(0x6f4a2a));
+    leg.position.set(lx, 0.225, -0.1); g.add(leg);
+  }
+  scene.add(g);
+  // Local footprint half-extents (X=0.9, Z=0.3) rotated by rotY into an axis-aligned box.
+  const halfX = Math.abs(0.9 * Math.cos(rotY)) + Math.abs(0.3 * Math.sin(rotY));
+  const halfZ = Math.abs(0.9 * Math.sin(rotY)) + Math.abs(0.3 * Math.cos(rotY));
+  addBox(x - halfX, z - halfZ, x + halfX, z + halfZ);
+}
+
 /** A trimmed hedge (box). */
 export function buildHedge(scene, x, z, w, d, h = 0.8) {
   const mat = new THREE.MeshStandardMaterial({ color: 0x3d6b2e, roughness: 1 });
