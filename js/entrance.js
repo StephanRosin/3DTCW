@@ -119,9 +119,14 @@ export function buildEntrance(scene) {
   // boundary between the Grotto walkway and the TCW terrace), NOT near the
   // buildings/entrance. Sits just north of (behind) the terrace's south
   // retaining-wall hedge line (z≈-21.2), on the plaza itself. A dense run
-  // of 7 overlapping bush clusters (radius 0.7-1.4 m, slight z/y jitter so
+  // of overlapping bush clusters (radius 0.7-1.5 m, slight x/z/y jitter so
   // it doesn't read as a mechanical repeat) reads as a proper green
-  // boundary rather than 3 sparse, puny bushes. -----------------------
+  // boundary rather than a thin line of puny bushes. The bed is a full bay
+  // deep (z -21.4..-23.6ish), densest near the original z -21.4..-23 line
+  // and thinning out toward z -24.2, so it grows toward the buildings/arch
+  // side without ever reaching the walking corridor (z -25.5..-24.3, kept
+  // clear on purpose — see the walk-route check where this file is used).
+  // No collider is added for bushes, by design (walkable-through greenery).
   const bushMat = new THREE.MeshStandardMaterial({ color: 0x2e5c28, roughness: 1, flatShading: true });
   function buildBush(x, z, r, dy = 0) {
     const bush = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 0), bushMat);
@@ -130,6 +135,7 @@ export function buildEntrance(scene) {
     group.add(bush);
   }
   const bushClusters = [
+    // Original front row (z -21.4..-22.2, closest to the court-side line).
     { x: -0.3, z: -21.6, r: 1.0, dy: 0.05 },
     { x: 1.0, z: -21.9, r: 1.3, dy: -0.05 },
     { x: 2.2, z: -21.5, r: 0.9, dy: 0.08 },
@@ -137,6 +143,17 @@ export function buildEntrance(scene) {
     { x: 4.6, z: -21.6, r: 1.0, dy: 0.04 },
     { x: 5.8, z: -21.9, r: 1.2, dy: -0.06 },
     { x: 7.0, z: -21.5, r: 0.8, dy: 0.06 },
+    // Second, deeper row (z -22.4..-23.1) doubling the bed's depth toward
+    // the buildings/arch side.
+    { x: -0.5, z: -22.4, r: 1.1, dy: 0.02 },
+    { x: 0.7, z: -22.9, r: 1.3, dy: -0.04 },
+    { x: 2.0, z: -22.5, r: 1.0, dy: 0.05 },
+    { x: 3.2, z: -23.1, r: 1.0, dy: -0.02 },
+    { x: 4.5, z: -22.7, r: 1.1, dy: 0.04 },
+    { x: 5.7, z: -23.0, r: 1.2, dy: -0.03 },
+    // Sparse outliers thinning toward the walk corridor; kept well clear of
+    // z=-24.3 so the corridor to the arch stays visually and physically open.
+    { x: 3.0, z: -23.6, r: 0.7, dy: 0.0 },
   ];
   for (const b of bushClusters) buildBush(b.x, b.z, b.r, b.dy);
 
@@ -149,13 +166,15 @@ export function buildEntrance(scene) {
   {
     const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5b4127, roughness: 1 });
     const crownMat = new THREE.MeshStandardMaterial({ color: 0x3f7532, roughness: 1, flatShading: true });
-    const tx = 3.5, tz = -21.9, trunkH = 2.2, trunkR = 0.14;
-    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(trunkR * 0.7, trunkR, trunkH, 8), trunkMat);
+    const tx = 3.5, tz = -21.9, trunkH = 3.2, trunkR = 0.16;
+    // Trunk runs from the plateau floor (local y 0) up into the crown so it
+    // visibly enters the lowest crown blob instead of leaving a floating gap.
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.13, trunkR, trunkH, 8), trunkMat);
     trunk.position.set(tx, trunkH / 2, tz);
     trunk.castShadow = true;
     group.add(trunk);
 
-    const crownY = 4;
+    const crownY = 3.2;
     const crownBlobs = [
       { dx: 0, dz: 0, r: 1.7 },
       { dx: 1.2, dz: 0.5, r: 1.2 },

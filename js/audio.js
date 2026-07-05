@@ -21,7 +21,7 @@ export function initMusic(camera, scene) {
   audio.setMaxDistance(38);
   audio.setRolloffFactor(1);
   audio.setDistanceModel('linear');
-  audio.setVolume(0.4);
+  audio.setVolume(0.2);
 
   // Small dark-grey speaker box on the bar wooden wall's south face, near
   // the top (wall spans x -19..-12.4, z=-33.8, height 3.6 -> baseY 1.5).
