@@ -269,13 +269,17 @@ export function buildTerracePlateau(scene) {
 
     // West step wall: closes the cliff at x=10 where the walkway (1.5 m)
     // meets the shorter ground-level strip to its west (behind the
-    // entrance wall, x -12..10 at z -21..-18.3). Purely visual — the
-    // player on top can already walk around via the contiguous plateau at
-    // z<=-21, and ground-level players are already kept off by the fence.
+    // entrance wall, x -12..10 at z -21..-18.3). Fall collider straddles
+    // x=10 for the walkway's z-span only (-21..-18.3) — it does NOT block
+    // the plateau->walkway transition, which happens further north: the
+    // plateau top (z<=-21) is contiguous across x=10 (both PLATEAU and
+    // GROTTO_WALK read 1.5 there), so players walk onto the walkway by
+    // crossing x=10 while still north of z=-21, then turning south.
     const stepWall = new THREE.Mesh(new THREE.BoxGeometry(0.3, deckH, gd), wallMat);
     stepWall.position.set(GROTTO_WALK.minX, deckH / 2, gcz);
     stepWall.castShadow = true; stepWall.receiveShadow = true;
     scene.add(stepWall);
+    addBox(9.7, -21, 10.3, -18.3);
   }
 
   // West / north edge colliders (forest side / clubhouse-back side stay solid boundaries).
@@ -543,9 +547,9 @@ function signTexture(text, { bg = '#26313a', fg = '#ffffff', fontSize = 110 } = 
 /**
  * The clubhouse: the shared long-building shell set back at the north edge
  * of the deepened terrace plateau, with a TCW logo rondell on the south
- * facade, a vine-covered pergola over the open terrace, café furniture,
- * stair-mouth planters, and a wooden barrier along the plateau's back
- * (north) edge.
+ * facade, a bare wooden pergola over the four rect terrace tables, a
+ * walk-in bar niche behind a high wooden wall, a terrace-edge hedge, and a
+ * wooden barrier along the plateau's back (north) edge.
  */
 export function buildClubhouse(scene) {
   const p = PLATEAU;
@@ -780,7 +784,7 @@ export function buildForest(scene, count = 650, innerR = 75, outerR = 220) {
   // court enclosure and off the plateau), on top of the ring capacity.
   const extraTrees = [
     { x: -20, z: -62 }, { x: -8, z: -64 }, { x: 5, z: -63 }, { x: 18, z: -61 }, { x: -30, z: -63 },
-    { x: -62, z: -20 }, { x: -64, z: -8 }, { x: -63, z: 5 }, { x: -61, z: 18 }, { x: -65, z: -30 },
+    { x: -62, z: -20 }, { x: -64, z: -8 }, { x: -63, z: 5 }, { x: -61, z: 18 }, { x: -61, z: -28 },
   ];
   const capacity = count + extraTrees.length;
 

@@ -3,8 +3,9 @@ import { addBox } from './collision.js';
 import { pbr, loadTex } from './textures.js';
 
 /**
- * The entrance portal, built directly at the terrace: a stone arch wall
- * (matching the TCW6 reference photo) that players walk through from the
+ * The entrance portal, built directly at the terrace: a wood-facade arch
+ * wall (same wood recipe as the clubhouse, matching the TCW6 reference
+ * photo) that players walk through from the
  * forecourt onto the deep terrace, with a round TCW logo plaque and a big
  * Waidcup poster on the east (forecourt) face.
  *
@@ -27,7 +28,7 @@ export function buildEntrance(scene) {
   const wallThickness = 0.6;
 
   // Arch opening sits near the SOUTH end of the wall (forecourt/tribune
-  // corner), leaving a long stone run to the north for the Waidcup poster.
+  // corner), leaving a long run of wood facade to the north for the Waidcup poster.
   // NOTE on the local->world mapping: the wall mesh is rotated rotation.y =
   // +PI/2, so local shape-X maps to world Z as `wallCz - localX` (NOT
   // `wallCz + localX`) — verified against the actual rendered geometry.
@@ -37,7 +38,7 @@ export function buildEntrance(scene) {
   const archWorldZ = -24.0;
   const archLocalX = wallCz - archWorldZ;   // local shape-X offset of the hole (-4.65)
 
-  // --- Stone arch wall --------------------------------------------------
+  // --- Wood-facade arch wall ----------------------------------------------
   const shape = new THREE.Shape();
   const hw = wallLen / 2;
   shape.moveTo(-hw, 0); shape.lineTo(hw, 0); shape.lineTo(hw, wallH); shape.lineTo(-hw, wallH); shape.closePath();
@@ -77,7 +78,7 @@ export function buildEntrance(scene) {
   group.add(wall);
 
   // Colliders either side of the arch passage (world coords; the passage
-  // itself is free between z -25.3..-22.7, matching the stone hole). The
+  // itself is free between z -25.3..-22.7, matching the arch opening). The
   // south jamb collider ends exactly at the plateau's south edge (z=-21.3),
   // flush with the retaining-wall collider east of x=-12 (see
   // buildTerracePlateau) — no walkable gap at the corner.
@@ -125,7 +126,7 @@ export function buildEntrance(scene) {
     bush.castShadow = true; bush.receiveShadow = true;
     group.add(bush);
   }
-  buildBush(-1, -21.7, 1.0);
+  buildBush(0.5, -21.7, 1.0);
   buildBush(3, -21.7, 1.2);
   buildBush(7, -21.7, 0.8);
 
