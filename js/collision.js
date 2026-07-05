@@ -8,7 +8,11 @@ export const colliders = [];
 // (Task 7) and entrance walkway (Task 8). Two ramp zones (aligned with the
 // north-fence gates) let players walk up/down between plateau and ground.
 export const PLATEAU = { minX: -48, maxX: 48, minZ: -48, maxZ: -21, h: 1.5, stepDepth: 2.4 };
-export const RAMPS = [ { minX: -38, maxX: 8 } ];
+// Stairs/grandstand steps only at the TCW (clubhouse) terrace, aligned with
+// the gate-to-court-1/2 corridor at x=-31.2. East of the entrance wall
+// (x=-12) the south edge is a continuous retaining wall — see
+// buildTerracePlateau, which derives its wall segments from this range.
+export const RAMPS = [ { minX: -38, maxX: -12 } ];
 
 export function groundHeight(x, z) {
   const p = PLATEAU;

@@ -5,19 +5,39 @@ import { pbr, loadTex } from './textures.js';
 export const wood = (c = 0x8a5a33) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.85, metalness: 0 });
 export const metalDark = new THREE.MeshStandardMaterial({ color: 0x2b2f33, roughness: 0.5, metalness: 0.6 });
 
-/** A simple café table (round top on a stem). Returns world position of the top. */
-export function buildTable(scene, x, z, color = 0xf3f1ea, y = 0) {
+/** A simple café table (round top on a stem). Returns world position of the top. `r` is the tabletop radius. */
+export function buildTable(scene, x, z, color = 0xf3f1ea, y = 0, r = 0.42) {
   const g = new THREE.Group();
   g.position.set(x, y, z);
   const topMat = new THREE.MeshStandardMaterial({ color, roughness: 0.6, metalness: 0.1 });
-  const top = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.05, 20), topMat);
+  const top = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.05, 24), topMat);
   top.position.y = 0.72; top.castShadow = true; g.add(top);
   const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.72, 10), metalDark);
   stem.position.y = 0.36; g.add(stem);
-  const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.3, 0.04, 14), metalDark);
+  const foot = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.67, r * 0.71, 0.04, 14), metalDark);
   foot.position.y = 0.02; g.add(foot);
   scene.add(g);
-  addBox(x - 0.4, z - 0.4, x + 0.4, z + 0.4);
+  addBox(x - r, z - r, x + r, z + r);
+  return new THREE.Vector3(x, y + 0.72, z);
+}
+
+/** A rectangular café table (wood top on 4 legs). `w` = X extent, `d` = Z extent. */
+export function buildRectTable(scene, x, z, w = 0.8, d = 1.6, color = 0xf3f1ea, y = 0) {
+  const g = new THREE.Group();
+  g.position.set(x, y, z);
+  const topMat = new THREE.MeshStandardMaterial({ color, roughness: 0.6, metalness: 0.1 });
+  const top = new THREE.Mesh(new THREE.BoxGeometry(w, 0.05, d), topMat);
+  top.position.y = 0.72; top.castShadow = true; g.add(top);
+  const legH = 0.72, inset = 0.08;
+  for (const [lx, lz] of [
+    [-w / 2 + inset, -d / 2 + inset], [w / 2 - inset, -d / 2 + inset],
+    [-w / 2 + inset, d / 2 - inset], [w / 2 - inset, d / 2 - inset],
+  ]) {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, legH, 8), metalDark);
+    leg.position.set(lx, legH / 2, lz); leg.castShadow = true; g.add(leg);
+  }
+  scene.add(g);
+  addBox(x - w / 2, z - d / 2, x + w / 2, z + d / 2);
   return new THREE.Vector3(x, y + 0.72, z);
 }
 
@@ -342,14 +362,14 @@ function buildLongBuilding(scene, cx, cz, { signage } = {}) {
 }
 
 /** Draws `text` onto a canvas texture — same recipe as the fence sponsor banners. */
-function signTexture(text, { bg = '#26313a', fg = '#ffffff' } = {}) {
+function signTexture(text, { bg = '#26313a', fg = '#ffffff', fontSize = 110 } = {}) {
   const c = document.createElement('canvas');
   c.width = 1024; c.height = 256;
   const g = c.getContext('2d');
   g.fillStyle = bg; g.fillRect(0, 0, 1024, 256);
   g.strokeStyle = 'rgba(255,255,255,.25)'; g.lineWidth = 6; g.strokeRect(8, 8, 1008, 240);
   g.fillStyle = fg; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.font = 'bold 110px Arial'; g.fillText(text, 512, 128);
+  g.font = `bold ${fontSize}px Arial`; g.fillText(text, 512, 128);
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
   return t;
@@ -368,11 +388,12 @@ export function buildClubhouse(scene) {
 
   const { baseY, southZ } = buildLongBuilding(scene, bx, bz, {
     signage: (scene, cx, baseY, southZ) => {
-      // TCW logo rondell on the south facade (faces +Z toward the courts, no rotation needed)
-      const logoMat = new THREE.MeshStandardMaterial({ color: 0x26418f, roughness: 0.4 });
+      // TCW logo rondell on the south facade (faces +Z toward the courts, no
+      // rotation needed) — true colours, no tinting/transparency.
+      const logoMat = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
       logoMat.map = loadTex('assets/logos/tcw-logo.jpg', {
         srgb: true,
-        onError: () => { logoMat.map = null; logoMat.needsUpdate = true; },
+        onError: () => { logoMat.map = null; logoMat.color.set(0x26418f); logoMat.needsUpdate = true; },
       });
       const logo = new THREE.Mesh(new THREE.CircleGeometry(0.7, 32), logoMat);
       logo.position.set(cx, baseY + 1.9, southZ + 0.06);
@@ -380,43 +401,99 @@ export function buildClubhouse(scene) {
     },
   });
 
-  // --- Pergola over the deep terrace ------------------------------------
-  buildPergola(scene, -31.2, -31, 14, 5, baseY);
+  // --- Pergola over the 4 rect tables (see below) -----------------------
+  buildPergola(scene, -21, -30, 15, 4.5, baseY);
 
-  // Café tables + chairs spread across the deep terrace (z -34..-24,
-  // x -44..-16): some under the pergola, some in the open. Kept out of
-  // x -33..-29.5/z>-23 so the stair-mouth corridor at x=-31.2 stays clear,
-  // and out of the z≈-29 east-west line so the arch walkway (coming from
-  // the entrance at x=-12) keeps a clear meander toward the stairs.
+  // --- Terrace furniture, laid out per the TCWLayout2 sketch --------------
   const chairColor = 0x3a4a5a;
 
-  // Group 1 — open, west side, near the south (stair) edge.
-  buildTable(scene, -40, -26, 0xf3f1ea, baseY);
-  buildChair(scene, -40, -26.7, 0, chairColor, baseY);
-  buildChair(scene, -40, -25.3, Math.PI, chairColor, baseY);
-  buildChair(scene, -40.7, -26, Math.PI / 2, chairColor, baseY);
+  // Bar, NE corner against the clubhouse front: a walk-in niche. The bar
+  // wall stands full clubhouse height (dark wood-slat facade, matching the
+  // building) and hides the counter + fridges from the terrace; staff walk
+  // in from a clear aisle behind the equipment (between it and the
+  // clubhouse front at z=-36) rather than serving over the wall.
+  {
+    const wallMinX = -19, wallMaxX = -12.4;
+    const wallW = wallMaxX - wallMinX, wallCx = (wallMinX + wallMaxX) / 2;
+    const wallZ = -33.8, wallH = 3.6, wallThickness = 0.12;
+    const barWallMat = pbr({ dir: 'assets/textures/wood', color: 0x4a3826, repeat: [2, 1.5], roughness: 0.85 });
+    const barWall = new THREE.Mesh(new THREE.BoxGeometry(wallW, wallH, wallThickness), barWallMat);
+    barWall.position.set(wallCx, baseY + wallH / 2, wallZ);
+    barWall.castShadow = true; barWall.receiveShadow = true;
+    scene.add(barWall);
+    addBox(wallMinX, wallZ - 0.1, wallMaxX, wallZ + 0.1);
 
-  // Group 2 — under the pergola, west side, deeper into the terrace.
-  buildTable(scene, -35, -32.5, 0xf3f1ea, baseY);
-  buildChair(scene, -35, -33.2, 0, chairColor, baseY);
-  buildChair(scene, -35, -31.8, Math.PI, chairColor, baseY);
+    // Equipment (counter + fridges) hugs the wall's north face; a ~1.4 m
+    // aisle stays clear between the equipment and the clubhouse front.
+    const equipZ = wallZ - wallThickness / 2 - 0.35;   // -34.21, depth-0.7 centred against the wall face
 
-  // Group 3 — under the pergola, east side.
-  buildTable(scene, -25.5, -32, 0xf3f1ea, baseY);
-  buildChair(scene, -25.5, -32.7, 0, chairColor, baseY);
-  buildChair(scene, -25.5, -31.3, Math.PI, chairColor, baseY);
-  buildChair(scene, -24.8, -32, -Math.PI / 2, chairColor, baseY);
+    const counterMat = new THREE.MeshStandardMaterial({ color: 0xb8bcc0, roughness: 0.35, metalness: 0.85 });
+    const counterW = 5, counterD = 0.65, counterH = 0.9;
+    const counterCx = -15;
+    const counter = new THREE.Mesh(new THREE.BoxGeometry(counterW, counterH, counterD), counterMat);
+    counter.position.set(counterCx, baseY + counterH / 2, equipZ);
+    counter.castShadow = true; counter.receiveShadow = true;
+    scene.add(counter);
+    addBox(counterCx - counterW / 2, equipZ - counterD / 2, counterCx + counterW / 2, equipZ + counterD / 2);
 
-  // Group 4 — open, east side toward the entrance forecourt, near the
-  // south edge (keeps the z≈-29 arch-walkway line clear).
-  buildTable(scene, -19, -25.5, 0xf3f1ea, baseY);
-  buildChair(scene, -19, -26.2, 0, chairColor, baseY);
-  buildChair(scene, -19, -24.8, Math.PI, chairColor, baseY);
+    // Beer tap — chrome column + angled spout + drip tray, east third of the
+    // counter, spout overhanging the aisle (north) side.
+    const tapX = counterCx + counterW / 2 - counterW / 6;
+    const tapMat = new THREE.MeshStandardMaterial({ color: 0xd7dbe0, roughness: 0.15, metalness: 0.95 });
+    const tapZ = equipZ - counterD / 2 + 0.08;
+    const tapBase = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.04, 12), tapMat);
+    tapBase.position.set(tapX, baseY + counterH + 0.02, tapZ);
+    scene.add(tapBase);
+    const tapCol = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.25, 10), tapMat);
+    tapCol.position.set(tapX, baseY + counterH + 0.165, tapZ);
+    scene.add(tapCol);
+    const tapHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.18, 8), tapMat);
+    tapHandle.position.set(tapX, baseY + counterH + 0.31, tapZ - 0.05);
+    tapHandle.rotation.x = -Math.PI / 3;
+    scene.add(tapHandle);
+    const drip = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.02, 0.1), metalDark);
+    drip.position.set(tapX, baseY + counterH + 0.01, tapZ - 0.06);
+    scene.add(drip);
 
-  // Red umbrellas (3)
-  buildUmbrella(scene, -40, -26, 0xc03030, baseY);
-  buildUmbrella(scene, -35, -32.5, 0xc03030, baseY);
-  buildUmbrella(scene, -19, -25.5, 0xc03030, baseY);
+    // 2 fridges beside the counter (west end), hugging the same wall face;
+    // fronts face the aisle (north) so staff can load them from behind.
+    const fridgeMat = new THREE.MeshStandardMaterial({ color: 0xe8e8e4, roughness: 0.4, metalness: 0.2 });
+    const doorMat = new THREE.MeshStandardMaterial({ color: 0xd0d0cc, roughness: 0.3, metalness: 0.3 });
+    const fridgeW = 0.7, fridgeD = 0.7, fridgeH = 1.8;
+    for (const fx of [counterCx - counterW / 2 - fridgeW / 2, counterCx - counterW / 2 - fridgeW * 1.5]) {
+      const fridge = new THREE.Mesh(new THREE.BoxGeometry(fridgeW, fridgeH, fridgeD), fridgeMat);
+      fridge.position.set(fx, baseY + fridgeH / 2, equipZ);
+      fridge.castShadow = true; fridge.receiveShadow = true;
+      scene.add(fridge);
+      const door = new THREE.Mesh(new THREE.PlaneGeometry(fridgeW - 0.08, fridgeH - 0.1), doorMat);
+      door.position.set(fx, baseY + fridgeH / 2, equipZ - fridgeD / 2 - 0.01);
+      door.rotation.y = Math.PI;
+      scene.add(door);
+      addBox(fx - fridgeW / 2, equipZ - fridgeD / 2, fx + fridgeW / 2, equipZ + fridgeD / 2);
+    }
+  }
+
+  // 4 rectangular tables (1.6 x 0.8, long axis along Z) in a row, 2 chairs
+  // on each long side (east + west), all facing the table.
+  for (const tx of [-15, -19, -23, -27]) {
+    buildRectTable(scene, tx, -30, 0.8, 1.6, 0xf3f1ea, baseY);
+    for (const tz of [-30.45, -29.55]) {
+      buildChair(scene, tx - 0.7, tz, Math.PI / 2, chairColor, baseY);   // west side, faces east
+      buildChair(scene, tx + 0.7, tz, -Math.PI / 2, chairColor, baseY);  // east side, faces west
+    }
+  }
+
+  // 1 round table (r ~0.8) with 6 chairs arranged radially around it.
+  {
+    const rx = -38, rz = -31, tableR = 0.8, chairDist = tableR + 0.55;
+    buildTable(scene, rx, rz, 0xf3f1ea, baseY, tableR);
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      const cxp = rx + Math.sin(a) * chairDist;
+      const czp = rz + Math.cos(a) * chairDist;
+      buildChair(scene, cxp, czp, a + Math.PI, chairColor, baseY);   // faces back toward the table centre
+    }
+  }
 
   // Planter hedges flanking the stair mouth
   buildHedge(scene, -34.5, -21.8, 2.5, 0.8, 0.5, baseY);
@@ -431,28 +508,40 @@ export function buildClubhouse(scene) {
 /**
  * The restaurant: a second long building spanning courts 4-6 (mirrored
  * east of the clubhouse), the shared long-building shell with a
- * "RESTAURANT" sign board instead of the TCW rondell, and a restaurant
- * terrace of tables/chairs/umbrellas in front of it. A walking lane along
- * z≈-29 is kept clear so the forecourt plaza connects through to the
- * clubhouse terrace.
+ * "TESSIN GROTTO" sign board instead of the TCW rondell, and a restaurant
+ * terrace of tables/chairs/umbrellas in front of it. A low concrete wall
+ * (with a plaza-side gap) separates the terrace from the walkway that
+ * passes it on the courts side, so furniture stays north of z=-26.5.
  */
 export function buildRestaurant(scene) {
   const bx = 23.4, bz = -39.5;
 
   const { baseY, southZ } = buildLongBuilding(scene, bx, bz, {
     signage: (scene, cx, baseY, southZ) => {
-      const signMat = new THREE.MeshBasicMaterial({ map: signTexture('RESTAURANT'), side: THREE.FrontSide });
-      const sign = new THREE.Mesh(new THREE.PlaneGeometry(4, 0.7), signMat);
+      const signMat = new THREE.MeshBasicMaterial({ map: signTexture('TESSIN GROTTO', { fontSize: 78 }), side: THREE.FrontSide });
+      const sign = new THREE.Mesh(new THREE.PlaneGeometry(4.6, 0.8), signMat);
       sign.position.set(cx, baseY + 2.8, southZ + 0.06);
       scene.add(sign);
     },
   });
 
-  // Restaurant terrace (x 10..40, z -35..-24): 8 table groups + 4 red
-  // umbrellas, kept off the z≈-29 walking lane that connects the forecourt
-  // plaza through to the clubhouse terrace.
+  // Low wall (Mäuerchen) separating the Grotto terrace from the walkway
+  // that runs past it on the courts side, x 12..44 (a 2 m gap at x 10..12
+  // is the terrace's own entrance from the plaza side — no wall there).
+  {
+    const mCx = (12 + 44) / 2, mW = 44 - 12, mH = 0.8, mThick = 0.25, mZ = -26;
+    const mMat = pbr({ dir: 'assets/textures/concrete', color: 0x9a958c, repeat: [6, 1], roughness: 0.9 });
+    const mauerchen = new THREE.Mesh(new THREE.BoxGeometry(mW, mH, mThick), mMat);
+    mauerchen.position.set(mCx, baseY + mH / 2, mZ);
+    mauerchen.castShadow = true; mauerchen.receiveShadow = true;
+    scene.add(mauerchen);
+    addBox(12, mZ - mThick / 2, 44, mZ + mThick / 2);
+  }
+
+  // Restaurant terrace (x 10..40): 8 table groups + 4 red umbrellas, all
+  // north of z=-26.5 so nothing pokes past the Mäuerchen into the walkway.
   const chairColor = 0x3a4a5a;
-  const northRowZ = -33, southRowZ = -26;
+  const northRowZ = -33, southRowZ = -27.3;
   const cols = [14, 20, 27, 34];
 
   for (const x of cols) {

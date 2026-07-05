@@ -302,7 +302,7 @@ function makeBannerMesh(banner, w = 6, h = 1.5) {
 
 /** TCW club-logo plane (square). */
 function makeTcwLogoMesh(size = 1.5) {
-  const logoMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.FrontSide });
+  const logoMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.FrontSide, toneMapped: false });
   logoMat.map = loadTex('assets/logos/tcw-logo.jpg', {
     srgb: true,
     onError: () => { logoMat.map = null; logoMat.color.set(0x26418f); logoMat.needsUpdate = true; },
@@ -318,7 +318,7 @@ function makeTcwLogoMesh(size = 1.5) {
  * matching the TCW logo plane treatment.
  */
 function makeWaidcupLogoMesh(size = 1.5) {
-  const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.FrontSide });
+  const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.FrontSide, toneMapped: false });
   mat.map = loadTex('assets/logos/waidcup.png', {
     srgb: true,
     onError: () => { mat.map = null; mat.color.set(0x3d8f3d); mat.needsUpdate = true; },
