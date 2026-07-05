@@ -152,3 +152,8 @@ Ball-Physik, Tag/Nacht-Umschalter, Backend jeglicher Art.
   bis zum Gehwegrand; Treppe zu den Courts nur im Bereich der TCW-Terrasse;
   Hecke vor der Mauer schlüssig (kein Durchkommen); Grotto-Terrasse mit
   Mäuerchen zum seitlichen Gehweg abgetrennt (eine Öffnung).
+- Korrektur Bogenposition: Der Eingang sitzt am NORD-Ende der Mauer (aus
+  Nutzersicht links, bei der Bar); Waidcup-Poster auf dem langen Süd-
+  Abschnitt (rechts vom Eingang). Screens damit beim Eintreten rechts.
+- Terrassen-Musik: 2 MP3s (lokal, gitignored) abwechselnd als Positional
+  Audio an der TCW-Terrasse; hörbar bis vor den Eingang, nicht beim Grotto.
