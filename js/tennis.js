@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { addBox } from './collision.js';
-import { pbr } from './textures.js';
+import { pbr, loadTex } from './textures.js';
 
 // --- Regulation court dimensions (metres) ---
 const COURT_L = 23.77;   // baseline to baseline (along local Z)
@@ -261,6 +261,83 @@ export function buildFloodlight(scene, x, z, height = 12) {
   return g;
 }
 
+/** Renders a sponsor banner ({text, bg, fg, sub}) onto a canvas texture. */
+function bannerTexture({ text, bg = '#1c5c34', fg = '#ffffff', sub = '' }) {
+  const c = document.createElement('canvas');
+  c.width = 1024; c.height = 256;
+  const g = c.getContext('2d');
+  g.fillStyle = bg; g.fillRect(0, 0, 1024, 256);
+  g.strokeStyle = 'rgba(255,255,255,.25)'; g.lineWidth = 6; g.strokeRect(8, 8, 1008, 240);
+  g.fillStyle = fg; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = 'bold 110px Arial'; g.fillText(text, 512, sub ? 100 : 128);
+  if (sub) { g.font = '52px Arial'; g.fillText(sub, 512, 196); }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  return t;
+}
+
+const BANNERS = [
+  { text: 'TC WAIDBERG', sub: 'seit 1932', bg: '#26418f' },
+  { text: 'WAIDCUP', sub: '18.–26. Juli 2026', bg: '#3d8f3d' },
+  { text: 'RACKET SPORT', bg: '#0d7a44' },
+  { text: 'GARAGE ZÜRICH-NORD', bg: '#222222', fg: '#e8e0d0' },
+  { text: 'VERSICHERUNG WAID', bg: '#7a1f1f' },
+  { text: 'SPORTSHOP CITY', bg: '#14506e' },
+];
+
+// Windscreen band is 2.2 m tall (see buildEnclosureFence) — banners sit centred in it.
+const BANNER_Y = 1.2;
+const SCREEN_OFFSET = 0.06;   // clearance off the windscreen, toward the court interior
+
+function makeBannerMesh(banner, w = 6, h = 1.5) {
+  const mat = new THREE.MeshBasicMaterial({ map: bannerTexture(banner), side: THREE.FrontSide });
+  return new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+}
+
+/**
+ * Sponsor banners + club-logo planes on the inside of the windscreen.
+ * North side has no windscreen (chain-link only, see buildEnclosureFence), so it
+ * carries no banners — only south, west and east get them.
+ */
+function buildBanners(group) {
+  const { minX, maxX, maxZ } = ENC;
+  const southZ = maxZ - SCREEN_OFFSET;
+
+  // South — 6 sponsor banners in a row.
+  const southX = [-36, -22, -8, 6, 20, 34];
+  southX.forEach((x, i) => {
+    const mesh = makeBannerMesh(BANNERS[i]);
+    mesh.position.set(x, BANNER_Y, southZ);
+    mesh.rotation.y = Math.PI;   // face -Z, into the court row
+    group.add(mesh);
+  });
+
+  // West — one banner, mid-side, facing +X into the enclosure.
+  const west = makeBannerMesh(BANNERS[0]);
+  west.position.set(minX + SCREEN_OFFSET, BANNER_Y, 0);
+  west.rotation.y = Math.PI / 2;
+  group.add(west);
+
+  // East — one banner, mid-side, facing -X into the enclosure.
+  const east = makeBannerMesh(BANNERS[1]);
+  east.position.set(maxX - SCREEN_OFFSET, BANNER_Y, 0);
+  east.rotation.y = -Math.PI / 2;
+  group.add(east);
+
+  // Two TCW club-logo planes flanking the south banner row.
+  for (const x of [-43, 43]) {
+    const logoMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.FrontSide });
+    logoMat.map = loadTex('assets/logos/tcw-logo.jpg', {
+      srgb: true,
+      onError: () => { logoMat.map = null; logoMat.color.set(0x26418f); logoMat.needsUpdate = true; },
+    });
+    const logo = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5), logoMat);
+    logo.position.set(x, BANNER_Y, southZ);
+    logo.rotation.y = Math.PI;
+    group.add(logo);
+  }
+}
+
 /**
  * Build a single row of 6 courts sharing one enclosure (matches the real facility's
  * aerial layout): one continuous clay surface, per-court line markings + nets,
@@ -288,6 +365,7 @@ export function buildCourtRow(scene) {
 
   buildEnclosureFence(group);
   addFenceColliders();
+  buildBanners(group);
 
   // North line: only 2 masts, offset from the centre gate at x = -31.2.
   for (const x of [-COURT_PITCH, COURT_PITCH]) {
