@@ -8,3 +8,5 @@ package-lock.json
 scratch_*
 *.png
 !docs/**/*.png
+!assets/**/*.png
+.superpowers/
