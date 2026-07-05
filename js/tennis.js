@@ -61,7 +61,12 @@ function lineMaterial() {
 
   const tex = new THREE.CanvasTexture(c);
   tex.anisotropy = 8;
-  _lineMat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false });
+  // Opaque-with-cutout instead of alpha-blended: as a `transparent: true`
+  // material this competed in the transparent-sort pass with the clubhouse
+  // window glass and could lose (lines disappearing when viewed through a
+  // pane). alphaTest gives a hard cutout with normal opaque depth writes —
+  // the lines plane sits at y=0.035 above the clay, so no z-fighting.
+  _lineMat = new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.5, transparent: false });
   _lineMat._planeW = COURT_W + pad * 2;
   _lineMat._planeH = COURT_L + pad * 2;
   return _lineMat;
@@ -84,7 +89,10 @@ function netMaterial() {
   const tex = new THREE.CanvasTexture(c);
   tex.wrapS = THREE.RepeatWrapping;
   tex.repeat.set(10, 1);
-  _netMat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide, depthWrite: false, alphaTest: 0.05 });
+  // Same opaque-with-cutout treatment as the court lines, so the net
+  // doesn't lose the transparent-sort race against the clubhouse window
+  // glass either.
+  _netMat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide, alphaTest: 0.4, transparent: false });
   return _netMat;
 }
 
@@ -462,14 +470,22 @@ export function buildCourtRow(scene) {
   }
 
   // Backless benches + red umbrellas centred in the corridor between adjacent courts.
-  // Bench runs lengthwise along Z (rotY = 90°); gaps inside a gate's walkable corridor
-  // are skipped so furniture never blocks an entrance.
+  // Bench runs lengthwise along Z (rotY = 90°). A gap that doubles as a gate's
+  // walkable corridor gets its furniture pushed back (z=2/4.5 instead of
+  // 0/2.5) so the gate->court walking line stays clear.
   for (let i = 0; i < courtX.length - 1; i++) {
     const gapX = (courtX[i] + courtX[i + 1]) / 2;
-    if (GATE_X.some((gx) => Math.abs(gapX - gx) < 3)) continue;
-    buildBenchBackless(group, gapX, 0, Math.PI / 2);
-    buildUmbrella(group, gapX, 2.5, 0xc03030);
+    const isGateGap = GATE_X.some((gx) => Math.abs(gapX - gx) < 3);
+    const benchZ = isGateGap ? 2 : 0, umbrellaZ = isGateGap ? 4.5 : 2.5;
+    buildBenchBackless(group, gapX, benchZ, Math.PI / 2);
+    buildUmbrella(group, gapX, umbrellaZ, 0xc03030);
   }
+
+  // Extra pair east of court 6, in the corridor between the court and the
+  // east fence (x 44.5..48.8: court 6's doubles line ends at 44.485, the
+  // east fence collider sits at 48.7).
+  buildBenchBackless(group, 46.6, 0, Math.PI / 2);
+  buildUmbrella(group, 46.6, 2.5, 0xc03030);
 
   buildEnclosureFence(group);
   addFenceColliders();

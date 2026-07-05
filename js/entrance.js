@@ -49,13 +49,29 @@ export function buildEntrance(scene) {
   hole.absarc(archLocalX, jambH, jambHalfW, Math.PI, 0, true);   // semicircle apex at jambH + jambHalfW = 3.2
   hole.lineTo(archLocalX + jambHalfW, 0);
   hole.closePath();
+  // NOTE: the hole must stay flush with the outer shape's own Y=0 bottom
+  // edge (NOT sunk below it) — a hole path that exits the outer contour
+  // fails to triangulate correctly and ExtrudeGeometry silently renders the
+  // wall solid, with no arch opening at all. Fixed below instead by
+  // lifting the whole wall mesh a couple cm off the deck.
   shape.holes.push(hole);
 
   const wallGeo = new THREE.ExtrudeGeometry(shape, { depth: wallThickness, bevelEnabled: false });
-  const stoneMat = pbr({ dir: 'assets/textures/stone', color: 0x9a938a, repeat: [4, 1.2] });
-  const wall = new THREE.Mesh(wallGeo, stoneMat);
+  // Same wood-PBR recipe as the clubhouse/restaurant facade (Task 10's
+  // facadeMat in props.js: color 0xb0925f, roughness 0.85), so the entrance
+  // wall reads as part of the same building family. Repeat is scaled down
+  // from the facade's [8, 1.5] over its 42 m length to this wall's 14.7 m
+  // length, keeping the same texel density; the height repeat (1.5) is
+  // unchanged since both walls share the same 3.6 m height.
+  const wallMat = pbr({ dir: 'assets/textures/wood', color: 0xb0925f, repeat: [8 * (wallLen / 42), 1.5], roughness: 0.85 });
+  const wall = new THREE.Mesh(wallGeo, wallMat);
   // Shape-X (wall length) rotates onto world Z, shape-Z (thickness) onto world X.
-  wall.position.set(wallX - wallThickness / 2, 0, wallCz);
+  // Y is raised 2 cm off the deck: the arch hole's bottom edge sweeps into a
+  // real horizontal "sill" quad (ExtrudeGeometry extrudes every contour
+  // edge, hole included) that would otherwise sit exactly coplanar with the
+  // terrace deck's paving top and z-fight with it in the open archway — the
+  // only place it's ever exposed (elsewhere it's buried under solid wall).
+  wall.position.set(wallX - wallThickness / 2, 0.02, wallCz);
   wall.rotation.y = Math.PI / 2;
   wall.castShadow = true; wall.receiveShadow = true;
   group.add(wall);
@@ -98,9 +114,10 @@ export function buildEntrance(scene) {
   poster.rotation.y = Math.PI / 2;   // faces the arriving player, same as the logo
   group.add(poster);
 
-  // --- Forecourt plaza greenery, kept clear of the arch approach lane -----
-  // (the z≈-24.0 walkway from startPos through the arch stays open); bushes
-  // sit north toward the clubhouse-corner of the plaza, well clear of it.
+  // --- Plaza greenery, at the COURT side of the plaza (the natural
+  // boundary between the Grotto walkway and the TCW terrace), NOT near the
+  // buildings/entrance. Sits just north of (behind) the terrace's south
+  // retaining-wall hedge line (z≈-21.2), on the plaza itself. -------------
   const bushMat = new THREE.MeshStandardMaterial({ color: 0x2e5c28, roughness: 1, flatShading: true });
   function buildBush(x, z, r) {
     const bush = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 0), bushMat);
@@ -108,14 +125,14 @@ export function buildEntrance(scene) {
     bush.castShadow = true; bush.receiveShadow = true;
     group.add(bush);
   }
-  buildBush(6, -34, 1.0);
-  buildBush(2, -33.5, 1.2);
-  buildBush(-8, -35, 0.8);
+  buildBush(-1, -21.7, 1.0);
+  buildBush(3, -21.7, 1.2);
+  buildBush(7, -21.7, 0.8);
 
-  // Planter relocated off the ramp lane, onto the restaurant side.
+  // Planter, same court-side boundary, east of the bushes.
   const planterMat = new THREE.MeshStandardMaterial({ color: 0x3d6b2e, roughness: 1 });
   const planter = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.5, 0.8), planterMat);
-  planter.position.set(14, 0.25, -22.3);
+  planter.position.set(11, 0.25, -21.7);
   planter.castShadow = true; planter.receiveShadow = true;
   group.add(planter);
 

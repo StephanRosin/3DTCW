@@ -8,20 +8,61 @@ export const colliders = [];
 // (Task 7) and entrance walkway (Task 8). Two ramp zones (aligned with the
 // north-fence gates) let players walk up/down between plateau and ground.
 export const PLATEAU = { minX: -48, maxX: 48, minZ: -48, maxZ: -21, h: 1.5, stepDepth: 2.4 };
-// Stairs/grandstand steps only at the TCW (clubhouse) terrace, aligned with
-// the gate-to-court-1/2 corridor at x=-31.2. East of the entrance wall
-// (x=-12) the south edge is a continuous retaining wall — see
-// buildTerracePlateau, which derives its wall segments from this range.
-export const RAMPS = [ { minX: -38, maxX: -12 } ];
+// A single narrow staircase, aligned with the gate-to-court-1/2 corridor at
+// x=-31.2 — the only place the full-height (1.5 m) terrace steps down to
+// ground level. East of it (x -29.5..-12) the terrace steps down only half
+// as far, onto the half-height lawn (see LAWN below); east of the lawn
+// (x=-12..48, behind the entrance wall) the south edge is a continuous
+// full-height retaining wall — see buildTerracePlateau, which derives its
+// wall segments from these ranges.
+export const RAMPS = [ { minX: -33, maxX: -29.5 } ];
+
+// Half-height lawn terrace east of the main stairs: the plateau's south
+// edge drops only 0.75 m here (instead of the full 1.5 m), down to a grass
+// deck that runs alongside the main staircase before dropping the
+// remaining 0.75 m to ground level at LAWN.maxZ.
+export const LAWN = { minX: -29.5, maxX: -12, minZ: -21, maxZ: -18.6, h: 0.75 };
+// Small hedge-gap stair down from the terrace onto the lawn (no railing) —
+// a short lerp from PLATEAU.h to LAWN.h over the same 1.2 m the hedge gap
+// spans, so the visual steps (buildTerracePlateau) line up with this ramp.
+export const LAWN_STAIR = { minX: -28.2, maxX: -27.0 };
+
+// Grotto walkway: the plateau's south edge pushed all the way out to the
+// court fence for x=10..48 (the Grotto Mäuerchen + terrace's own frontage),
+// so the walkway runs flush with the fence instead of stepping down to
+// ground first. Same height as the plateau (1.5) — no ramp, just a deeper
+// footprint; see buildTerracePlateau for the extra deck/wall geometry.
+export const GROTTO_WALK = { minX: 10, maxX: 48, minZ: -21, maxZ: -18.3, h: 1.5 };
 
 export function groundHeight(x, z) {
   const p = PLATEAU;
   if (x < p.minX || x > p.maxX) return 0;
   if (z >= p.minZ && z <= p.maxZ) return p.h;
-  if (z > p.maxZ && z <= p.maxZ + p.stepDepth
-      && RAMPS.some((r) => x >= r.minX && x <= r.maxX)) {
-    return p.h * (1 - (z - p.maxZ) / p.stepDepth);
+
+  // Grotto walkway extension (checked before the ramp/lawn logic below —
+  // its x-range (10..48) doesn't overlap RAMPS/LAWN anyway, but it's the
+  // same south-of-the-plateau shape so it belongs alongside them).
+  if (x >= GROTTO_WALK.minX && x <= GROTTO_WALK.maxX && z > GROTTO_WALK.minZ && z <= GROTTO_WALK.maxZ) {
+    return GROTTO_WALK.h;
   }
+
+  // Main staircase: full 1.5 -> 0 ramp, limited to the RAMPS x-range.
+  if (z > p.maxZ && z <= p.maxZ + p.stepDepth) {
+    const r = RAMPS[0];
+    if (x >= r.minX && x <= r.maxX) {
+      return p.h * (1 - (z - p.maxZ) / p.stepDepth);
+    }
+  }
+
+  // Half-height lawn terrace (its own x/z strip, independent of RAMPS).
+  if (x >= LAWN.minX && x <= LAWN.maxX && z > LAWN.minZ && z <= LAWN.maxZ) {
+    if (x >= LAWN_STAIR.minX && x <= LAWN_STAIR.maxX && z <= -19.8) {
+      const t = (z - LAWN.minZ) / 1.2;   // 0 at z=-21, 1 at z=-19.8
+      return p.h + t * (LAWN.h - p.h);   // lerp 1.5 -> 0.75
+    }
+    return LAWN.h;
+  }
+
   return 0;
 }
 

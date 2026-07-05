@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { addBox, PLATEAU, RAMPS, groundHeight } from './collision.js';
+import { addBox, PLATEAU, RAMPS, LAWN, LAWN_STAIR, GROTTO_WALK, groundHeight } from './collision.js';
 import { pbr, loadTex } from './textures.js';
 
 export const wood = (c = 0x8a5a33) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.85, metalness: 0 });
@@ -190,15 +190,16 @@ export function buildTerracePlateau(scene) {
   deck.castShadow = true; deck.receiveShadow = true;
   scene.add(deck);
 
-  // --- South retaining wall + hedge, skipping the ramp X-range -------------
-  const ramps = [...RAMPS].sort((a, b) => a.minX - b.minX);
-  const wallSegments = [];
-  let cursor = p.minX;
-  for (const r of ramps) {
-    if (r.minX > cursor) wallSegments.push({ minX: cursor, maxX: r.minX });
-    cursor = Math.max(cursor, r.maxX);
-  }
-  if (cursor < p.maxX) wallSegments.push({ minX: cursor, maxX: p.maxX });
+  // --- South retaining wall + hedge, full height (1.5 m) only west of the
+  // stairs and east of the lawn — the strip in between (LAWN.minX..LAWN.maxX)
+  // is the half-height lawn terrace built further below, which gets its own
+  // (shorter) edge treatment instead of this wall. ------------------------
+  const wallSegments = [
+    { minX: p.minX, maxX: RAMPS[0].minX },        // -48..-33 (west of the stairs)
+    { minX: LAWN.maxX, maxX: GROTTO_WALK.minX },   // -12..10 (east of the lawn, behind the entrance wall)
+    // x=10..48 has no edge wall/hedge here — the plateau itself extends all
+    // the way to the court fence there (the Grotto walkway, built below).
+  ];
 
   const wallMat = pbr({ dir: 'assets/textures/concrete', color: 0x9a958c, repeat: [8, 1], roughness: 0.9 });
   const hedgeMat = new THREE.MeshStandardMaterial({ color: 0x3d6b2e, roughness: 1 });
@@ -223,23 +224,65 @@ export function buildTerracePlateau(scene) {
   }
 
   // --- East retaining wall (plateau's east edge, facing the courts) ------
+  // Extended south to GROTTO_WALK.maxZ (-18.3) so it keeps facing the courts
+  // along the full depth of the Grotto walkway extension, not just the
+  // original plateau depth.
   const eastWallH = 1.5;
-  const eastWall = new THREE.Mesh(new THREE.BoxGeometry(0.3, eastWallH, depth), wallMat);
-  eastWall.position.set(p.maxX, eastWallH / 2, cz);
+  const eastMinZ = p.minZ, eastMaxZ = GROTTO_WALK.maxZ;
+  const eastDepth = eastMaxZ - eastMinZ, eastCz = (eastMinZ + eastMaxZ) / 2;
+  const eastWall = new THREE.Mesh(new THREE.BoxGeometry(0.3, eastWallH, eastDepth), wallMat);
+  eastWall.position.set(p.maxX, eastWallH / 2, eastCz);
   eastWall.castShadow = true; eastWall.receiveShadow = true;
   scene.add(eastWall);
-  addBox(p.maxX - 0.3, p.minZ, p.maxX + 0.35, p.maxZ);
+  addBox(p.maxX - 0.3, eastMinZ, p.maxX + 0.35, eastMaxZ);
 
+  // Hedge on top of the east wall only runs the original plateau depth —
+  // south of z=-21 that's the open-view walkway along the fence, not a
+  // planted edge.
   const eastHedge = new THREE.Mesh(new THREE.BoxGeometry(0.5, hedgeH, depth), hedgeMat);
   eastHedge.position.set(p.maxX, eastWallH + hedgeH / 2, cz);
   eastHedge.castShadow = true; eastHedge.receiveShadow = true;
   scene.add(eastHedge);
 
+  // --- Grotto walkway extension (x 10..48): the plateau pushed out to the
+  // court fence, flush with the terrace above (no ramp, same 1.5 m height —
+  // see GROTTO_WALK in collision.js). Paving deck + a south retaining face
+  // at the new edge (z=-18.3) + a west "step" wall at x=10 closing the gap
+  // against the shorter plateau (behind the entrance wall) to its west. ---
+  {
+    const gw = GROTTO_WALK.maxX - GROTTO_WALK.minX;
+    const gcx = (GROTTO_WALK.minX + GROTTO_WALK.maxX) / 2;
+    const gd = GROTTO_WALK.maxZ - GROTTO_WALK.minZ;
+    const gcz = (GROTTO_WALK.minZ + GROTTO_WALK.maxZ) / 2;
+    const walkDeck = new THREE.Mesh(
+      new THREE.BoxGeometry(gw, deckH, gd),
+      [concreteSide, concreteSide, pavingTop, concreteSide, concreteSide, concreteSide]
+    );
+    walkDeck.position.set(gcx, deckH / 2, gcz);
+    walkDeck.castShadow = true; walkDeck.receiveShadow = true;
+    scene.add(walkDeck);
+
+    // South retaining face (visible from the courts) + fall collider —
+    // covers the full width even through the east-gate gap in the north
+    // fence collider, so the elevated walkway never has an unguarded edge.
+    addBox(GROTTO_WALK.minX, GROTTO_WALK.maxZ - 0.15, GROTTO_WALK.maxX, GROTTO_WALK.maxZ + 0.15);
+
+    // West step wall: closes the cliff at x=10 where the walkway (1.5 m)
+    // meets the shorter ground-level strip to its west (behind the
+    // entrance wall, x -12..10 at z -21..-18.3). Purely visual — the
+    // player on top can already walk around via the contiguous plateau at
+    // z<=-21, and ground-level players are already kept off by the fence.
+    const stepWall = new THREE.Mesh(new THREE.BoxGeometry(0.3, deckH, gd), wallMat);
+    stepWall.position.set(GROTTO_WALK.minX, deckH / 2, gcz);
+    stepWall.castShadow = true; stepWall.receiveShadow = true;
+    scene.add(stepWall);
+  }
+
   // West / north edge colliders (forest side / clubhouse-back side stay solid boundaries).
   addBox(p.minX - 0.3, p.minZ, p.minX + 0.3, p.maxZ);
   addBox(p.minX, p.minZ - 0.3, p.maxX, p.minZ + 0.3);
 
-  // --- Sitting steps (tribune) in the single RAMPS zone --------------------
+  // --- Main staircase (the single RAMPS zone) ------------------------------
   const woodMat = pbr({ dir: 'assets/textures/wood', color: 0x8a5a33, repeat: [6, 1], roughness: 0.85 });
   const stepHeights = [1.375, 1.125, 0.875, 0.625, 0.375, 0.125];
   const stepDepth = 0.4, stepH = 0.25;
@@ -255,11 +298,116 @@ export function buildTerracePlateau(scene) {
       scene.add(step);
     });
   }
+
+  // Handrails both sides of the staircase, following the slope from the
+  // terrace top (z=-21, y=1.5) down to ground (z=-18.6, y=0). Colliders hug
+  // both rail lines so the player can't fall off the side of the stairs.
+  buildStairRailing(scene, RAMPS[0].minX - 0.1, RAMPS[0].maxX + 0.1, p.maxZ, p.maxZ + p.stepDepth, p.h, 0);
+
+  // --- Half-height lawn terrace (between the main stairs and the entrance
+  // wall): a lower deck at LAWN.h (0.75) whose north face is simply the
+  // exposed lower half of the main deck's own south face (the deck box
+  // already runs the full 1.5 m down to ground) — the lawn platform covers
+  // the bottom half of that face, leaving a 0.75 m "cliff" above the lawn
+  // that the terrace-edge hedge below sits on top of. -----------------------
+  {
+    const grassTop = pbr({ dir: 'assets/textures/grass', color: 0x5a8a3c, repeat: [6, 1], roughness: 1 });
+    const lw = LAWN.maxX - LAWN.minX, lcx = (LAWN.minX + LAWN.maxX) / 2;
+    const ld = LAWN.maxZ - LAWN.minZ, lcz = (LAWN.minZ + LAWN.maxZ) / 2;
+    const lawn = new THREE.Mesh(
+      new THREE.BoxGeometry(lw, LAWN.h, ld),
+      [concreteSide, concreteSide, grassTop, concreteSide, concreteSide, concreteSide]
+    );
+    lawn.position.set(lcx, LAWN.h / 2, lcz);
+    lawn.castShadow = true; lawn.receiveShadow = true;
+    scene.add(lawn);
+
+    // South retaining edge (drop to ground level) — the lawn box's own
+    // south face already reads as the wall; just add the fall collider.
+    addBox(LAWN.minX, LAWN.maxZ - 0.15, LAWN.maxX, LAWN.maxZ + 0.15);
+
+    // East cap where the lawn meets the entrance-wall line (x=-12): a small
+    // concrete end-wall + hedge on top, closing the lawn off from the
+    // full-height ground east of the entrance wall, plus a fall collider.
+    const capWall = new THREE.Mesh(new THREE.BoxGeometry(0.3, LAWN.h, ld), wallMat);
+    capWall.position.set(LAWN.maxX, LAWN.h / 2, lcz);
+    capWall.castShadow = true; capWall.receiveShadow = true;
+    scene.add(capWall);
+    const capHedge = new THREE.Mesh(new THREE.BoxGeometry(0.5, hedgeH, ld), hedgeMat);
+    capHedge.position.set(LAWN.maxX, LAWN.h + hedgeH / 2, lcz);
+    capHedge.castShadow = true; capHedge.receiveShadow = true;
+    scene.add(capHedge);
+    addBox(LAWN.maxX - 0.15, LAWN.minZ, LAWN.maxX + 0.2, LAWN.maxZ);
+
+    // Terrace-edge hedge above the lawn (continuation of the terrace-edge
+    // hedge line), continuous except the small hedge-gap passage (LAWN_STAIR).
+    const hedgeSegs = [
+      { minX: LAWN.minX, maxX: LAWN_STAIR.minX },
+      { minX: LAWN_STAIR.maxX, maxX: LAWN.maxX },
+    ];
+    for (const seg of hedgeSegs) {
+      const segW = seg.maxX - seg.minX;
+      if (segW <= 0) continue;
+      const segCx = (seg.minX + seg.maxX) / 2;
+      const hedge = new THREE.Mesh(new THREE.BoxGeometry(segW, hedgeH, hedgeDepth), hedgeMat);
+      hedge.position.set(segCx, deckH + hedgeH / 2, p.maxZ);
+      hedge.castShadow = true; hedge.receiveShadow = true;
+      scene.add(hedge);
+      addBox(seg.minX, p.maxZ - 0.3, seg.maxX, p.maxZ + 0.15);
+    }
+
+    // Small stair through the hedge gap (no railing): 3 wood treads from the
+    // terrace top down to the lawn, matching the LAWN_STAIR ramp in
+    // groundHeight() exactly (same lerp formula) so the visual steps line
+    // up with what the player actually walks on.
+    const sw = LAWN_STAIR.maxX - LAWN_STAIR.minX, scx = (LAWN_STAIR.minX + LAWN_STAIR.maxX) / 2;
+    for (let i = 0; i < 3; i++) {
+      const z = p.maxZ + stepDepth / 2 + i * stepDepth;          // -20.8, -20.4, -20.0
+      const topY = p.h + ((z - p.maxZ) / 1.2) * (LAWN.h - p.h);   // same lerp as groundHeight()
+      const step = new THREE.Mesh(new THREE.BoxGeometry(sw, stepH, stepDepth), woodMat);
+      step.position.set(scx, topY - stepH / 2, z);
+      step.castShadow = true; step.receiveShadow = true;
+      scene.add(step);
+    }
+  }
 }
 
 /**
- * A slatted wooden pergola with hanging vine greenery, built as a group so
- * it can be dropped onto the plateau (`y` = base offset, e.g. PLATEAU.h).
+ * Simple sloped handrails on both sides of the main staircase: posts + a
+ * single top rail following the slope from the terrace top (`zTop`/`yTop`)
+ * down to ground level (`zBottom`/`yBottom`), plus a thin fall collider
+ * along each rail line so the player can't step off the side of the stairs.
+ */
+function buildStairRailing(scene, xLeft, xRight, zTop, zBottom, yTop, yBottom) {
+  const dz = zBottom - zTop, dy = yBottom - yTop;
+  const len = Math.sqrt(dz * dz + dy * dy);
+  const dir = new THREE.Vector3(0, dy, dz).normalize();
+  const postCount = 5;
+  const railH = 0.9;
+
+  for (const x of [xLeft, xRight]) {
+    for (let i = 0; i <= postCount; i++) {
+      const t = i / postCount;
+      const z = zTop + t * dz;
+      const y = yTop + t * dy;
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, railH, 8), metalDark);
+      post.position.set(x, y + railH / 2, z);
+      post.castShadow = true;
+      scene.add(post);
+    }
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, len), metalDark);
+    rail.position.set(x, (yTop + yBottom) / 2 + railH, (zTop + zBottom) / 2);
+    rail.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
+    scene.add(rail);
+
+    addBox(x - 0.08, Math.min(zTop, zBottom), x + 0.08, Math.max(zTop, zBottom));
+  }
+}
+
+/**
+ * A slatted wooden pergola (posts + beams + slats only, no greenery), built
+ * as a group so it can be dropped onto the plateau (`y` = base offset, e.g.
+ * PLATEAU.h).
  */
 function buildPergola(scene, cx, cz, w, d, y = 0) {
   const g = new THREE.Group();
@@ -268,18 +416,15 @@ function buildPergola(scene, cx, cz, w, d, y = 0) {
 
   const postMat = wood(0x8a5a33);
   const beamMat = wood(0x9a6a40);
-  const vineMat = new THREE.MeshStandardMaterial({ color: 0x2e5c28, roughness: 1, flatShading: true });
   const hw = w / 2, hd = d / 2, top = 2.6;
 
   // Corner + mid posts (world-space colliders; the meshes hang off the group).
-  const postXZ = [];
   for (const px of [-hw, 0, hw]) {
     for (const pz of [-hd, hd]) {
       const post = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, top, 10), postMat);
       post.position.set(px, top / 2, pz);
       post.castShadow = true; g.add(post);
       addBox(cx + px - 0.15, cz + pz - 0.15, cx + px + 0.15, cz + pz + 0.15);
-      postXZ.push([px, pz]);
     }
   }
   // Perimeter beams (long axis)
@@ -295,23 +440,6 @@ function buildPergola(scene, cx, cz, w, d, y = 0) {
     slat.position.set(x, top + 0.08, 0); g.add(slat);
   }
 
-  // Vine greenery: a leafy cluster at each post head...
-  for (const [px, pz] of postXZ) {
-    const cluster = new THREE.Mesh(new THREE.IcosahedronGeometry(0.42, 0), vineMat);
-    cluster.position.set(px, top + 0.12, pz);
-    cluster.castShadow = true; g.add(cluster);
-  }
-  // ...plus flattened leaf blobs draped along the top slats.
-  const vineCount = 9;
-  for (let i = 0; i < vineCount; i++) {
-    const t = i / (vineCount - 1);
-    const x = -hw + t * w;
-    const pz = (i % 2 === 0 ? -hd * 0.55 : hd * 0.55);
-    const blob = new THREE.Mesh(new THREE.SphereGeometry(0.32, 8, 6), vineMat);
-    blob.scale.y = 0.4;
-    blob.position.set(x, top + 0.22, pz);
-    g.add(blob);
-  }
   return g;
 }
 
@@ -379,13 +507,17 @@ function buildLongBuilding(scene, cx, cz, { signage } = {}) {
   band.position.set(cx, baseY + 2.1, southZ + 0.02);
   scene.add(band);
 
-  // Darker glass insets over the band
-  const glassMat = new THREE.MeshStandardMaterial({ color: 0x6fa0c8, roughness: 0.2, metalness: 0.3, transparent: true, opacity: 0.65 });
+  // Darker glass insets over the band. depthWrite: false + a later
+  // renderOrder keeps this transparent pane from competing unpredictably
+  // with other transparent objects (e.g. the court lines/net used to lose
+  // that sort and disappear when viewed through the glass).
+  const glassMat = new THREE.MeshStandardMaterial({ color: 0x6fa0c8, roughness: 0.2, metalness: 0.3, transparent: true, opacity: 0.65, depthWrite: false });
   const insetCount = 7, insetW = 3.6, bandW = 38;
   for (let i = 0; i < insetCount; i++) {
     const t = (i + 0.5) / insetCount - 0.5;
     const inset = new THREE.Mesh(new THREE.PlaneGeometry(insetW, 0.8), glassMat);
     inset.position.set(cx + t * bandW, baseY + 2.1, southZ + 0.03);
+    inset.renderOrder = 1;
     scene.add(inset);
   }
 
@@ -536,9 +668,10 @@ export function buildClubhouse(scene) {
     buildBigUmbrella(scene, rx - 1.1, rz, 0xc03030, baseY);
   }
 
-  // Planter hedges flanking the stair mouth
-  buildHedge(scene, -34.5, -21.8, 2.5, 0.8, 0.5, baseY);
-  buildHedge(scene, -27.9, -21.8, 2.5, 0.8, 0.5, baseY);
+  // (The old planter hedges flanking the stair mouth were removed: they
+  // pre-dated the narrow gated staircase + lawn hedge-gap and one of them
+  // sat directly across the new small-stair passage, blocking it. The
+  // terrace-edge hedge built in buildTerracePlateau now flanks both stairs.)
 
   // --- Barrier behind the clubhouse (plateau north edge; spans the whole
   // terrace width, so it is only built once here, not again for the
@@ -567,37 +700,52 @@ export function buildRestaurant(scene) {
   });
 
   // Low wall (Mäuerchen) separating the Grotto terrace from the walkway
-  // that runs past it on the courts side, x 12..44 (a 2 m gap at x 10..12
-  // is the terrace's own entrance from the plaza side — no wall there).
+  // that now runs along the court fence (the Grotto walkway extension in
+  // buildTerracePlateau, x 10..48, z -21..-18.3): a "natural boundary", not
+  // a real barrier, so it stays low (0.8 m) and gets a 2 m gap at its own
+  // west end (x 12..14) as the terrace's pedestrian entrance from the
+  // walkway/plaza side.
   {
-    const mCx = (12 + 44) / 2, mW = 44 - 12, mH = 0.8, mThick = 0.25, mZ = -26;
+    const mMinX = 14, mMaxX = 44, mH = 0.8, mThick = 0.25, mZ = -21.5;
+    const mCx = (mMinX + mMaxX) / 2, mW = mMaxX - mMinX;
     const mMat = pbr({ dir: 'assets/textures/concrete', color: 0x9a958c, repeat: [6, 1], roughness: 0.9 });
     const mauerchen = new THREE.Mesh(new THREE.BoxGeometry(mW, mH, mThick), mMat);
     mauerchen.position.set(mCx, baseY + mH / 2, mZ);
     mauerchen.castShadow = true; mauerchen.receiveShadow = true;
     scene.add(mauerchen);
-    addBox(12, mZ - mThick / 2, 44, mZ + mThick / 2);
+    addBox(mMinX, mZ - mThick / 2, mMaxX, mZ + mThick / 2);
   }
 
-  // Restaurant terrace (x 10..40): 8 table groups + 4 red umbrellas, all
-  // north of z=-26.5 so nothing pokes past the Mäuerchen into the walkway.
+  // Restaurant terrace (x 10..40): enlarged with the walkway move — an
+  // extra south row now fits between the original tables and the
+  // Mäuerchen (z -35..-22.5 is the gained space), all still north of the
+  // Mäuerchen (z=-21.5) so nothing pokes into the walkway.
   const chairColor = 0x3a4a5a;
-  const northRowZ = -33, southRowZ = -27.3;
+  const northRowZ = -33, midRowZ = -27.3, southRowZ = -23.5;
   const cols = [14, 20, 27, 34];
 
   for (const x of cols) {
-    for (const z of [northRowZ, southRowZ]) {
+    for (const z of [northRowZ, midRowZ]) {
       buildTable(scene, x, z, 0xf3f1ea, baseY);
       buildChair(scene, x, z - 0.7, 0, chairColor, baseY);
       buildChair(scene, x, z + 0.7, Math.PI, chairColor, baseY);
       buildChair(scene, x - 0.7, z, Math.PI / 2, chairColor, baseY);
     }
   }
+  for (const x of [16, 24, 32]) {
+    buildTable(scene, x, southRowZ, 0xf3f1ea, baseY);
+    buildChair(scene, x, southRowZ - 0.7, 0, chairColor, baseY);
+    buildChair(scene, x, southRowZ + 0.7, Math.PI, chairColor, baseY);
+    buildChair(scene, x - 0.7, southRowZ, Math.PI / 2, chairColor, baseY);
+    buildChair(scene, x + 0.7, southRowZ, -Math.PI / 2, chairColor, baseY);
+  }
 
-  buildUmbrella(scene, 14, southRowZ, 0xc03030, baseY);
+  buildUmbrella(scene, 14, midRowZ, 0xc03030, baseY);
   buildUmbrella(scene, 20, northRowZ, 0xc03030, baseY);
-  buildUmbrella(scene, 27, southRowZ, 0xc03030, baseY);
+  buildUmbrella(scene, 27, midRowZ, 0xc03030, baseY);
   buildUmbrella(scene, 34, northRowZ, 0xc03030, baseY);
+  buildUmbrella(scene, 16, southRowZ, 0xc03030, baseY);
+  buildUmbrella(scene, 32, southRowZ, 0xc03030, baseY);
 }
 
 /**
