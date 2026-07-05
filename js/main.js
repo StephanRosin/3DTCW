@@ -1,10 +1,7 @@
 import * as THREE from 'three';
 import { createScene, createSky, createLights, createGround } from './world.js';
 import { buildCourtRow, ENC } from './tennis.js';
-import {
-  buildClubhouse, buildTable, buildChair, buildUmbrella,
-  buildBench, buildHedge, buildForest
-} from './props.js';
+import { buildForest } from './props.js';
 import { createPlayer } from './player.js';
 
 const app = document.getElementById('app');
@@ -31,45 +28,10 @@ const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerH
 
 // --- Facility ---
 const { courtX } = buildCourtRow(scene);
-const halfBlockZ = Math.abs(ENC.minZ);
 
-// Clubhouse + terrace sit on the +Z (south) side, in front of the courts.
-const terraceFrontZ = halfBlockZ + 12;      // front edge of terrace, gap to courts
-const clubhouseX = 0;
-const terraceCenter = buildClubhouse(scene, clubhouseX, terraceFrontZ);
-
-// --- Furnish the terrace ---
-// A few tables with chairs; one designated as the start point (the white table).
-const startTablePos = buildTable(scene, terraceCenter.x - 3.5, terraceCenter.z + 0.5, 0xf5f3ec);
-buildChair(scene, terraceCenter.x - 3.5, terraceCenter.z + 1.3, Math.PI, 0x34506a);
-buildChair(scene, terraceCenter.x - 3.5, terraceCenter.z - 0.3, 0, 0x34506a);
-buildChair(scene, terraceCenter.x - 4.3, terraceCenter.z + 0.5, -Math.PI / 2, 0x34506a);
-
-buildTable(scene, terraceCenter.x + 3.5, terraceCenter.z + 0.3, 0xf5f3ec);
-buildChair(scene, terraceCenter.x + 3.5, terraceCenter.z + 1.1, Math.PI, 0x34506a);
-buildChair(scene, terraceCenter.x + 3.5, terraceCenter.z - 0.5, 0, 0x34506a);
-
-buildTable(scene, terraceCenter.x, terraceCenter.z + 1.6, 0xf5f3ec);
-buildChair(scene, terraceCenter.x - 0.8, terraceCenter.z + 1.6, -Math.PI / 2, 0x34506a);
-buildChair(scene, terraceCenter.x + 0.8, terraceCenter.z + 1.6, Math.PI / 2, 0x34506a);
-
-// Parasols dotted around the terrace edge and between courts and terrace.
-buildUmbrella(scene, terraceCenter.x - 6.5, terraceCenter.z + 1, 0x2f6fb0);
-buildUmbrella(scene, terraceCenter.x + 6.5, terraceCenter.z + 1, 0x2f6fb0);
-buildUmbrella(scene, terraceCenter.x - 10, terraceCenter.z - 3, 0x2f6fb0);
-buildUmbrella(scene, terraceCenter.x + 10, terraceCenter.z - 3, 0x2f6fb0);
-
-// Benches along the walkway between terrace and courts.
-const walkZ = halfBlockZ + 4;
-buildBench(scene, -14, walkZ, 0);
-buildBench(scene, 14, walkZ, 0);
-buildBench(scene, 0, walkZ + 2, Math.PI);
-
-// Hedges framing the terrace / lawn (like the trimmed hedges in the photo).
-buildHedge(scene, -9, terraceCenter.z - 2, 6, 0.7, 0.7);
-buildHedge(scene, 9, terraceCenter.z - 2, 6, 0.7, 0.7);
-buildHedge(scene, terraceCenter.x - 8.5, terraceCenter.z, 0.7, 5, 0.7);
-buildHedge(scene, terraceCenter.x + 8.5, terraceCenter.z, 0.7, 5, 0.7);
+// Note: the provisional v1 clubhouse/terrace (south side) has been removed.
+// The real clubhouse will be rebuilt on the north side in a later task, which is
+// also why the north fence has no windscreen (clear sightline from the clubhouse).
 
 // --- Forest ring ---
 buildForest(scene, 440, 80, 235);

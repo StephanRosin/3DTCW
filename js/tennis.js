@@ -22,7 +22,7 @@ const GATE_H = 2.2;
 const GATE_X = [-31.2, 40];
 
 // Shared materials / textures (built once, reused across all 6 courts).
-let _lineMat, _netMat, _metalDark;
+let _lineMat, _netMat, _metalDark, _ballMat, _brushMat;
 
 function lineMaterial() {
   if (_lineMat) return _lineMat;
@@ -92,6 +92,18 @@ function metalDarkMaterial() {
   if (_metalDark) return _metalDark;
   _metalDark = new THREE.MeshStandardMaterial({ color: 0x2b2b2b, roughness: 0.5, metalness: 0.6 });
   return _metalDark;
+}
+
+function ballMaterial() {
+  if (_ballMat) return _ballMat;
+  _ballMat = new THREE.MeshStandardMaterial({ color: 0xd8e63c, roughness: 0.6 });
+  return _ballMat;
+}
+
+function brushMaterial() {
+  if (_brushMat) return _brushMat;
+  _brushMat = new THREE.MeshStandardMaterial({ color: 0xc9a227, roughness: 0.9 });
+  return _brushMat;
 }
 
 /** Line markings + net for one court centred at world x = cx (net runs along X at z = 0). */
@@ -345,60 +357,6 @@ function detailRand(n) {
   return s - Math.floor(s);
 }
 
-/** Umpire chair: metal tower, seat at 1.9 m, small ladder. Faces -X (across the net line). */
-function buildUmpireChair(group, x, z) {
-  const seatMat = new THREE.MeshStandardMaterial({ color: 0x2e4632, roughness: 0.7, metalness: 0.1 });
-  const seatH = 1.9;
-  const g = new THREE.Group();
-  g.position.set(x, 0, z);
-
-  // Four vertical legs (a wider footprint along X = front-to-back of the seated umpire).
-  for (const [lx, lz] of [[-0.32, -0.4], [-0.32, 0.4], [0.32, -0.4], [0.32, 0.4]]) {
-    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.08, seatH, 0.08), metalDark);
-    leg.position.set(lx, seatH / 2, lz);
-    leg.castShadow = true;
-    g.add(leg);
-  }
-  // Cross braces, left/right sides at two heights.
-  for (const ly of [0.55, 1.15]) {
-    for (const lx of [-0.32, 0.32]) {
-      const brace = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.82), metalDark);
-      brace.position.set(lx, ly, 0);
-      g.add(brace);
-    }
-  }
-  // Seat + backrest. Chair faces -X (toward the court); backrest sits on the +X side.
-  const seat = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.06, 0.85), seatMat);
-  seat.position.set(0, seatH, 0);
-  seat.castShadow = true;
-  g.add(seat);
-  const back = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.5, 0.85), seatMat);
-  back.position.set(0.3, seatH + 0.28, 0);
-  g.add(back);
-  const foot = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.05, 0.7), metalDark);
-  foot.position.set(-0.15, seatH - 0.55, 0);
-  g.add(foot);
-
-  // Ladder mounted on the +X side (outward, away from the court), leaning back at an angle.
-  const climbH = seatH - 0.1;
-  const railLen = Math.hypot(climbH, 0.55);
-  const railAngle = Math.atan2(0.55, climbH);
-  for (const lz of [-0.28, 0.28]) {
-    const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, railLen, 6), metalDark);
-    rail.position.set(0.32 + 0.275, climbH / 2, lz);
-    rail.rotation.z = -railAngle;
-    g.add(rail);
-  }
-  for (let i = 1; i <= 4; i++) {
-    const t = i / 5;
-    const step = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.04, 0.6), wood(0x6b4a2a));
-    step.position.set(0.32 + t * 0.55, t * climbH, 0);
-    g.add(step);
-  }
-
-  group.add(g);
-}
-
 /** Drag-net stand: net-textured mat lying flat on the clay + a low holder frame. */
 function buildDragNetStand(group, x, z) {
   const g = new THREE.Group();
@@ -434,8 +392,7 @@ function buildBroom(group, x, z) {
   handle.position.y = 0.75;
   handle.castShadow = true;
   g.add(handle);
-  const brush = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.12, 0.08),
-    new THREE.MeshStandardMaterial({ color: 0xc9a227, roughness: 0.9 }));
+  const brush = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.12, 0.08), brushMaterial());
   brush.position.y = 0.06;
   g.add(brush);
 
@@ -444,7 +401,7 @@ function buildBroom(group, x, z) {
 
 /** 2-3 scattered tennis balls near the court, plausible clay-side positions. */
 function buildBalls(group, cx, index) {
-  const ballMat = new THREE.MeshStandardMaterial({ color: 0xd8e63c, roughness: 0.6 });
+  const ballMat = ballMaterial();
   const count = 2 + (index % 2);
   for (let i = 0; i < count; i++) {
     const rx = (detailRand(index * 13 + i * 3 + 1) - 0.5) * 6;
@@ -456,12 +413,8 @@ function buildBalls(group, cx, index) {
   }
 }
 
-/** Per-court furniture: umpire chair (courts 1-3 only), drag net, broom, scattered balls. */
+/** Per-court furniture: drag net, broom, scattered balls. */
 function addCourtDetails(group, cx, index) {
-  if (index < 3) {
-    buildUmpireChair(group, cx + 6.2, 0);
-    addBox(cx + 5.9, -0.5, cx + 6.5, 0.5);
-  }
   buildDragNetStand(group, cx - 3, 16.5);
   buildBroom(group, cx + 2, 17.6);
   buildBalls(group, cx, index);
@@ -494,8 +447,10 @@ export function buildCourtRow(scene) {
   }
 
   // Benches + red umbrellas along the north side, one pair in each gap between courts.
+  // Gaps that fall in a gate's walkable corridor are skipped so furniture never blocks an entrance.
   for (let i = 0; i < courtX.length - 1; i++) {
     const gapX = (courtX[i] + courtX[i + 1]) / 2;
+    if (GATE_X.some((gx) => Math.abs(gapX - gx) < 3)) continue;
     buildBench(group, gapX, -16, Math.PI);
     buildUmbrella(group, gapX + 1.5, -16, 0xc03030);
   }
