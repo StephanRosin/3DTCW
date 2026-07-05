@@ -6,6 +6,7 @@ import { buildEntrance } from './entrance.js';
 import { buildScreens } from './screens.js';
 import { createPlayer } from './player.js';
 import { groundHeight } from './collision.js';
+import { initMusic } from './audio.js';
 
 const app = document.getElementById('app');
 
@@ -59,6 +60,10 @@ buildForest(scene, 650, 75, 220);
 const player = createPlayer(camera, renderer.domElement, startPos, lookTarget);
 scene.add(camera);
 
+// --- Terrace music: positional speaker on the bar wall, alternating tracks.
+// Playback only starts on the "Rundgang starten" click (autoplay policy).
+const music = initMusic(camera, scene);
+
 // --- Overlay wiring ---
 const overlay = document.getElementById('overlay');
 const playBtn = document.getElementById('play');
@@ -67,6 +72,7 @@ const loading = document.getElementById('loading');
 playBtn.addEventListener('click', () => {
   overlay.classList.add('hidden');
   player.start();
+  music.start();   // resumes AudioContext + kicks off the track chain (guarded against double-start)
 });
 player.onStop = () => overlay.classList.remove('hidden');
 
@@ -78,7 +84,7 @@ window.addEventListener('resize', () => {
 });
 
 // Debug handle (harmless; handy for inspecting the scene from the console).
-window.__tcw = { scene, camera, renderer };
+window.__tcw = { scene, camera, renderer, music: music.audio };
 
 window.__tcw.teleport = (x, z, yawDeg = 0) => {
   camera.position.set(x, 1.7 + groundHeight(x, z), z);

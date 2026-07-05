@@ -26,10 +26,16 @@ export function buildEntrance(scene) {
   const wallH = 3.6;
   const wallThickness = 0.6;
 
-  // Arch opening sits far south in the wall (near the forecourt/tribune
+  // Arch opening sits near the SOUTH end of the wall (forecourt/tribune
   // corner), leaving a long stone run to the north for the Waidcup poster.
-  const archWorldZ = -23.5;
-  const archLocalX = archWorldZ - wallCz;   // local shape-X offset of the hole (5.15)
+  // NOTE on the local->world mapping: the wall mesh is rotated rotation.y =
+  // +PI/2, so local shape-X maps to world Z as `wallCz - localX` (NOT
+  // `wallCz + localX`) — verified against the actual rendered geometry.
+  // archLocalX must therefore be `wallCz - archWorldZ`, the inverse of the
+  // naive `archWorldZ - wallCz` (which mirrors the hole to the wrong end
+  // of the wall).
+  const archWorldZ = -24.0;
+  const archLocalX = wallCz - archWorldZ;   // local shape-X offset of the hole (-4.65)
 
   // --- Stone arch wall --------------------------------------------------
   const shape = new THREE.Shape();
@@ -55,28 +61,31 @@ export function buildEntrance(scene) {
   group.add(wall);
 
   // Colliders either side of the arch passage (world coords; the passage
-  // itself is free between z -24.8..-22.2 — a bit more generous than the
-  // stone hole once the player radius is accounted for). The south jamb
-  // collider ends exactly at the plateau's south edge (z=-21.3), flush with
-  // the retaining-wall collider east of x=-12 (see buildTerracePlateau) —
-  // no walkable gap at the corner.
-  addBox(-12.35, -36, -11.65, -24.8);
-  addBox(-12.35, -22.2, -11.65, -21.3);
+  // itself is free between z -25.3..-22.7, matching the stone hole). The
+  // south jamb collider ends exactly at the plateau's south edge (z=-21.3),
+  // flush with the retaining-wall collider east of x=-12 (see
+  // buildTerracePlateau) — no walkable gap at the corner.
+  addBox(-12.35, -36, -11.65, -25.3);
+  addBox(-12.35, -22.7, -11.65, -21.3);
 
-  // --- Round TCW logo plaque, east (forecourt) face, right next to the ---
-  // arch on the long north stub (true colours: MeshBasicMaterial, no tint).
+  // --- Round TCW logo plaque, east (forecourt) face, on the SOUTH jamb ---
+  // (the short 1.4 m wall stub z -22.7..-21.3), immediately left of the arch
+  // as the player arrives (user-left = south in the plaza arrival view).
   const logoMat = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
   logoMat.map = loadTex('assets/logos/tcw-logo.jpg', {
     srgb: true,
     onError: () => { logoMat.map = null; logoMat.color.set(0x26418f); logoMat.needsUpdate = true; },
   });
   const logo = new THREE.Mesh(new THREE.CircleGeometry(0.55, 32), logoMat);
-  logo.position.set(-11.62, 1.9, -25.1);
+  logo.position.set(-11.62, 1.9, -22.0);
   logo.rotation.y = Math.PI / 2;   // normal -> +X, faces the arriving player
   group.add(logo);
 
-  // --- Big Waidcup poster, further north on the same wall face ------------
-  // Sized off the source PNG's aspect ratio so it never looks stretched.
+  // --- Big Waidcup poster, on the long north wall section (user-right on
+  // arrival), kept well clear of the arch opening (opening starts at
+  // z=-25.3; poster stays north of that with a >=1.2 m gap) so it never
+  // crowds the entrance. Sized off the source PNG's aspect ratio so it
+  // never looks stretched.
   const posterAspect = 797 / 866;   // assets/logos/waidcup.png (portrait poster)
   const posterH = 3.0, posterW = posterH * posterAspect;
   const posterMat = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
@@ -85,13 +94,13 @@ export function buildEntrance(scene) {
     onError: () => { posterMat.map = null; posterMat.color.set(0x3d8f3d); posterMat.needsUpdate = true; },
   });
   const poster = new THREE.Mesh(new THREE.PlaneGeometry(posterW, posterH), posterMat);
-  poster.position.set(-11.62, 1.9, -29);
+  poster.position.set(-11.62, 1.9, -30.0);
   poster.rotation.y = Math.PI / 2;   // faces the arriving player, same as the logo
   group.add(poster);
 
   // --- Forecourt plaza greenery, kept clear of the arch approach lane -----
-  // (the z≈-23.5 walkway from startPos through the arch stays open); bushes
-  // sit north toward the clubhouse-corner of the plaza.
+  // (the z≈-24.0 walkway from startPos through the arch stays open); bushes
+  // sit north toward the clubhouse-corner of the plaza, well clear of it.
   const bushMat = new THREE.MeshStandardMaterial({ color: 0x2e5c28, roughness: 1, flatShading: true });
   function buildBush(x, z, r) {
     const bush = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 0), bushMat);
@@ -110,7 +119,7 @@ export function buildEntrance(scene) {
   planter.castShadow = true; planter.receiveShadow = true;
   group.add(planter);
 
-  const startPos = new THREE.Vector3(4, 0, -23.5);
-  const lookTarget = new THREE.Vector3(-20, 0, -23.5);
+  const startPos = new THREE.Vector3(4, 0, -24.0);
+  const lookTarget = new THREE.Vector3(-20, 0, -24.0);
   return { startPos, lookTarget };
 }

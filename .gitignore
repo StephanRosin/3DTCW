@@ -10,3 +10,6 @@ scratch_*
 !docs/**/*.png
 !assets/**/*.png
 .superpowers/
+
+# Copyrighted terrace-music tracks (local only, never committed)
+assets/audio/

@@ -79,6 +79,34 @@ export function buildUmbrella(scene, x, z, color = 0x2f6fb0, y = 0) {
   addBox(x - 0.12, z - 0.12, x + 0.12, z + 0.12);
 }
 
+/**
+ * A large parasol (scaled-up variant of buildUmbrella) for the round table:
+ * canopy radius ~2.2, rim height ~3.2 above the terrace floor so players
+ * can walk under it. Only the pole gets a (small) collider.
+ */
+export function buildBigUmbrella(scene, x, z, color = 0xc03030, y = 0) {
+  const g = new THREE.Group();
+  g.position.set(x, y, z);
+  const canopyR = 2.2;
+  const thetaLength = Math.PI / 2.6;
+  // Rim (bottom edge of the spherical-cap canopy) sits at canopyBaseY +
+  // canopyR*cos(thetaLength); solved so the rim lands at ~3.2 m.
+  const rimY = 3.2;
+  const canopyBaseY = rimY - canopyR * Math.cos(thetaLength);
+  const poleH = canopyBaseY + 0.5;
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, poleH, 10), wood(0x6b6b6b));
+  pole.position.y = poleH / 2; g.add(pole);
+  const canopy = new THREE.Mesh(
+    new THREE.SphereGeometry(canopyR, 16, 8, 0, Math.PI * 2, 0, thetaLength),
+    new THREE.MeshStandardMaterial({ color, roughness: 0.8, side: THREE.DoubleSide })
+  );
+  canopy.position.y = canopyBaseY; canopy.castShadow = true; g.add(canopy);
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), wood(0x555555));
+  cap.position.y = canopyBaseY + canopyR + 0.06; g.add(cap);
+  scene.add(g);
+  addBox(x - 0.15, z - 0.15, x + 0.15, z + 0.15);   // pole-only collider
+}
+
 /** A wooden bench. */
 export function buildBench(scene, x, z, rotY = 0) {
   const g = new THREE.Group();
@@ -434,16 +462,21 @@ export function buildClubhouse(scene) {
 
     const counterMat = new THREE.MeshStandardMaterial({ color: 0xb8bcc0, roughness: 0.35, metalness: 0.85 });
     const counterW = 5, counterD = 0.65, counterH = 0.9;
-    const counterCx = -15;
+    // Shifted 1.4 m west of the wall's own centre (was -15) so the spare
+    // room the fridges need is now on the EAST end of the counter instead
+    // of the west end — this is what makes the tap/fridge swap below fit
+    // inside the wall footprint (wallMinX -19..wallMaxX -12.4) without the
+    // fridges poking out past the wall into the arch passage.
+    const counterCx = -16.4;
     const counter = new THREE.Mesh(new THREE.BoxGeometry(counterW, counterH, counterD), counterMat);
     counter.position.set(counterCx, baseY + counterH / 2, equipZ);
     counter.castShadow = true; counter.receiveShadow = true;
     scene.add(counter);
     addBox(counterCx - counterW / 2, equipZ - counterD / 2, counterCx + counterW / 2, equipZ + counterD / 2);
 
-    // Beer tap — chrome column + angled spout + drip tray, east third of the
+    // Beer tap — chrome column + angled spout + drip tray, west third of the
     // counter, spout overhanging the aisle (north) side.
-    const tapX = counterCx + counterW / 2 - counterW / 6;
+    const tapX = counterCx - counterW / 2 + counterW / 6;
     const tapMat = new THREE.MeshStandardMaterial({ color: 0xd7dbe0, roughness: 0.15, metalness: 0.95 });
     const tapZ = equipZ - counterD / 2 + 0.08;
     const tapBase = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.04, 12), tapMat);
@@ -460,12 +493,12 @@ export function buildClubhouse(scene) {
     drip.position.set(tapX, baseY + counterH + 0.01, tapZ - 0.06);
     scene.add(drip);
 
-    // 2 fridges beside the counter (west end), hugging the same wall face;
+    // 2 fridges beside the counter (east end), hugging the same wall face;
     // fronts face the aisle (north) so staff can load them from behind.
     const fridgeMat = new THREE.MeshStandardMaterial({ color: 0xe8e8e4, roughness: 0.4, metalness: 0.2 });
     const doorMat = new THREE.MeshStandardMaterial({ color: 0xd0d0cc, roughness: 0.3, metalness: 0.3 });
     const fridgeW = 0.7, fridgeD = 0.7, fridgeH = 1.8;
-    for (const fx of [counterCx - counterW / 2 - fridgeW / 2, counterCx - counterW / 2 - fridgeW * 1.5]) {
+    for (const fx of [counterCx + counterW / 2 + fridgeW / 2, counterCx + counterW / 2 + fridgeW * 1.5]) {
       const fridge = new THREE.Mesh(new THREE.BoxGeometry(fridgeW, fridgeH, fridgeD), fridgeMat);
       fridge.position.set(fx, baseY + fridgeH / 2, equipZ);
       fridge.castShadow = true; fridge.receiveShadow = true;
@@ -488,7 +521,9 @@ export function buildClubhouse(scene) {
     }
   }
 
-  // 1 round table (r ~0.8) with 6 chairs arranged radially around it.
+  // 1 round table (r ~0.8) with 6 chairs arranged radially around it, under
+  // a large parasol (pole offset 1.1 m west of the table centre so it reads
+  // naturally and clears both the table and the chairs).
   {
     const rx = -38, rz = -31, tableR = 0.8, chairDist = tableR + 0.55;
     buildTable(scene, rx, rz, 0xf3f1ea, baseY, tableR);
@@ -498,6 +533,7 @@ export function buildClubhouse(scene) {
       const czp = rz + Math.cos(a) * chairDist;
       buildChair(scene, cxp, czp, a + Math.PI, chairColor, baseY);   // faces back toward the table centre
     }
+    buildBigUmbrella(scene, rx - 1.1, rz, 0xc03030, baseY);
   }
 
   // Planter hedges flanking the stair mouth
