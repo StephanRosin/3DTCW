@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { addBox } from './collision.js';
+import { pbr } from './textures.js';
 
 // --- Regulation court dimensions (metres) ---
 const COURT_L = 23.77;   // baseline to baseline (along local Z)
@@ -7,43 +8,20 @@ const COURT_W = 10.97;   // doubles width (along local X)
 const SINGLES_W = 8.23;
 const SERVICE_FROM_NET = 6.40;
 
-// Fenced enclosure per court.
-export const FENCE_W = 18;   // X
-export const FENCE_D = 34;   // Z
-const FENCE_H = 3.0;
-const GATE_W = 2.2;          // opening in the fence
+// --- Row layout: 6 courts side by side, sharing one enclosure ---
+export const COURT_PITCH = 15.6;
+export const ROW_COURTS = 6;
+export const ENC = { minX: -48.8, maxX: 48.8, minZ: -18, maxZ: 18, h: 4 };
+
+// Gate gaps in the north fence (world x, half-width 1.1 m each).
+// -31.2: main access, between courts 1 and 2 (later gets a staircase from the raised terrace).
+// +40: east access.
+const GATE_W = 2.2;
+const GATE_H = 2.2;
+const GATE_X = [-31.2, 40];
 
 // Shared materials / textures (built once, reused across all 6 courts).
-let _clayMat, _lineMat, _netMat;
-
-function clayMaterial() {
-  if (_clayMat) return _clayMat;
-  const c = document.createElement('canvas');
-  c.width = c.height = 256;
-  const g = c.getContext('2d');
-  g.fillStyle = '#b0532e';
-  g.fillRect(0, 0, 256, 256);
-  // speckle + faint horizontal broom sweep
-  for (let i = 0; i < 5000; i++) {
-    const x = Math.random() * 256, y = Math.random() * 256;
-    const r = Math.random();
-    if (r < 0.5) g.fillStyle = 'rgba(150,68,36,0.5)';
-    else if (r < 0.8) g.fillStyle = 'rgba(196,102,60,0.5)';
-    else g.fillStyle = 'rgba(120,52,28,0.45)';
-    g.fillRect(x, y, 1.4, 1.4);
-  }
-  g.strokeStyle = 'rgba(140,64,34,0.25)';
-  g.lineWidth = 1;
-  for (let y = 0; y < 256; y += 4) {
-    g.beginPath(); g.moveTo(0, y + Math.random() * 2); g.lineTo(256, y + Math.random() * 2); g.stroke();
-  }
-  const tex = new THREE.CanvasTexture(c);
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(4, 4);
-  tex.anisotropy = 8;
-  _clayMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 1, metalness: 0 });
-  return _clayMat;
-}
+let _lineMat, _netMat, _metalDark;
 
 function lineMaterial() {
   if (_lineMat) return _lineMat;
@@ -109,52 +87,30 @@ function netMaterial() {
   return _netMat;
 }
 
-/**
- * Build one fenced court centred at (cx, cz). Long axis runs along Z.
- * Registers fence colliders (with a gate gap on the +Z side).
- */
-export function buildCourt(scene, cx, cz) {
-  const group = new THREE.Group();
-  group.position.set(cx, 0, cz);
-  scene.add(group);
+function metalDarkMaterial() {
+  if (_metalDark) return _metalDark;
+  _metalDark = new THREE.MeshStandardMaterial({ color: 0x2b2b2b, roughness: 0.5, metalness: 0.6 });
+  return _metalDark;
+}
 
-  // Clay surface (fills the enclosure).
-  const clay = new THREE.Mesh(new THREE.PlaneGeometry(FENCE_W - 0.6, FENCE_D - 0.6), clayMaterial());
-  clay.rotation.x = -Math.PI / 2;
-  clay.position.y = 0.02;
-  clay.receiveShadow = true;
-  group.add(clay);
-
-  // Court line markings.
+/** Line markings + net for one court centred at world x = cx (net runs along X at z = 0). */
+function addCourtMarkings(group, cx) {
   const lm = lineMaterial();
   const lines = new THREE.Mesh(new THREE.PlaneGeometry(lm._planeW, lm._planeH), lm);
   lines.rotation.x = -Math.PI / 2;
-  lines.position.y = 0.035;
+  lines.position.set(cx, 0.035, 0);
   group.add(lines);
 
-  buildNet(group);
-  buildFence(group);
-
-  // Fence collision (four sides; +Z side split for a gate).
-  const hw = FENCE_W / 2, hd = FENCE_D / 2;
-  const gx = cx, gz = cz;
-  addBox(gx - hw - 0.1, gz - hd - 0.1, gx + hw + 0.1, gz - hd + 0.1);        // back (-Z)
-  addBox(gx - hw - 0.1, gz - hd, gx - hw + 0.1, gz + hd);                     // left (-X)
-  addBox(gx + hw - 0.1, gz - hd, gx + hw + 0.1, gz + hd);                     // right (+X)
-  // front (+Z) with gate opening in the middle
-  addBox(gx - hw - 0.1, gz + hd - 0.1, gx - GATE_W / 2, gz + hd + 0.1);
-  addBox(gx + GATE_W / 2, gz + hd - 0.1, gx + hw + 0.1, gz + hd + 0.1);
-
-  return group;
+  addNet(group, cx);
 }
 
-function buildNet(group) {
+function addNet(group, cx) {
   const halfLen = 6.4;   // net extends slightly past doubles sidelines
   const netH = 1.07;
 
   // Net fabric
   const net = new THREE.Mesh(new THREE.PlaneGeometry(halfLen * 2, netH), netMaterial());
-  net.position.set(0, netH / 2, 0);
+  net.position.set(cx, netH / 2, 0);
   group.add(net);
 
   // White tape reinforcement bottom
@@ -162,63 +118,115 @@ function buildNet(group) {
     new THREE.PlaneGeometry(halfLen * 2, 0.05),
     new THREE.MeshBasicMaterial({ color: 0xf2f2ee, side: THREE.DoubleSide })
   );
-  band.position.set(0, 0.03, 0.001);
+  band.position.set(cx, 0.03, 0.001);
   group.add(band);
 
   // Posts
   const postMat = new THREE.MeshStandardMaterial({ color: 0x2b2b2b, roughness: 0.6, metalness: 0.4 });
   for (const sx of [-halfLen, halfLen]) {
     const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.2, 10), postMat);
-    post.position.set(sx, 0.6, 0);
+    post.position.set(cx + sx, 0.6, 0);
     post.castShadow = true;
     group.add(post);
   }
   // Centre strap
   const strap = new THREE.Mesh(new THREE.BoxGeometry(0.05, netH, 0.02),
     new THREE.MeshBasicMaterial({ color: 0xf2f2ee }));
-  strap.position.set(0, netH / 2, 0);
+  strap.position.set(cx, netH / 2, 0);
   group.add(strap);
 }
 
-function buildFence(group) {
-  const hw = FENCE_W / 2, hd = FENCE_D / 2;
-  const postMat = new THREE.MeshStandardMaterial({ color: 0x3a3f3a, roughness: 0.7, metalness: 0.3 });
-  const screenMat = new THREE.MeshStandardMaterial({ color: 0x2f6d42, roughness: 0.95, side: THREE.DoubleSide });
-  // chain-link (upper) — faint, mostly transparent
-  const linkMat = new THREE.MeshStandardMaterial({ color: 0x9aa39a, roughness: 0.8, metalness: 0.4, transparent: true, opacity: 0.18, side: THREE.DoubleSide });
+/** Visual door frame (uprights + lintel) marking a gate opening in the fence. */
+function buildGateFrame(group, x, z, width, height) {
+  const mat = metalDarkMaterial();
+  const postW = 0.08;
+  for (const dx of [-width / 2, width / 2]) {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(postW, height, postW), mat);
+    post.position.set(x + dx, height / 2, z);
+    post.castShadow = true;
+    group.add(post);
+  }
+  const lintel = new THREE.Mesh(new THREE.BoxGeometry(width + postW, postW, postW), mat);
+  lintel.position.set(x, height, z);
+  group.add(lintel);
+}
 
-  const screenH = 1.9;             // solid green windscreen height
-  const buildSide = (x1, z1, x2, z2, gate) => {
+/**
+ * Shared perimeter fence around the whole enclosure (windscreen + chain-link).
+ * North side is built as three segments so the two gate openings are visually open.
+ */
+function buildEnclosureFence(group) {
+  const { minX, maxX, minZ, maxZ, h } = ENC;
+  const screenH = 2.2;
+  const screenMat = new THREE.MeshStandardMaterial({ color: 0x2f6d42, roughness: 0.95, side: THREE.DoubleSide });
+  const linkMat = new THREE.MeshStandardMaterial({ color: 0x9aa39a, roughness: 0.8, metalness: 0.4, transparent: true, opacity: 0.25, side: THREE.DoubleSide });
+  const postMat = new THREE.MeshStandardMaterial({ color: 0x3a3f3a, roughness: 0.7, metalness: 0.3 });
+
+  // `withScreen = false` → chain-link only, full height (used on the north/clubhouse
+  // side so the courts stay visible from the terrace — no green windscreen there).
+  const buildSide = (x1, z1, x2, z2, withScreen = true) => {
     const len = Math.hypot(x2 - x1, z2 - z1);
+    if (len <= 0.01) return;
     const mx = (x1 + x2) / 2, mz = (z1 + z2) / 2;
     const angle = Math.atan2(z2 - z1, x2 - x1);
 
-    // green screen (lower)
-    const screen = new THREE.Mesh(new THREE.PlaneGeometry(len, screenH), screenMat);
-    screen.position.set(mx, screenH / 2, mz);
-    screen.rotation.y = -angle;
-    group.add(screen);
-    // link mesh (upper)
-    const link = new THREE.Mesh(new THREE.PlaneGeometry(len, FENCE_H - screenH), linkMat);
-    link.position.set(mx, screenH + (FENCE_H - screenH) / 2, mz);
-    link.rotation.y = -angle;
-    group.add(link);
+    if (withScreen) {
+      // green windscreen (lower)
+      const screen = new THREE.Mesh(new THREE.PlaneGeometry(len, screenH), screenMat);
+      screen.position.set(mx, screenH / 2, mz);
+      screen.rotation.y = -angle;
+      group.add(screen);
+      // chain-link (upper)
+      const link = new THREE.Mesh(new THREE.PlaneGeometry(len, h - screenH), linkMat);
+      link.position.set(mx, screenH + (h - screenH) / 2, mz);
+      link.rotation.y = -angle;
+      group.add(link);
+    } else {
+      // chain-link only, full height — courts stay visible from this side.
+      const link = new THREE.Mesh(new THREE.PlaneGeometry(len, h), linkMat);
+      link.position.set(mx, h / 2, mz);
+      link.rotation.y = -angle;
+      group.add(link);
+    }
+
+    // Posts every ~4 m along the segment.
+    const postStep = 4;
+    const n = Math.max(1, Math.round(len / postStep));
+    for (let i = 0; i <= n; i++) {
+      const t = i / n;
+      const px = x1 + (x2 - x1) * t, pz = z1 + (z2 - z1) * t;
+      const p = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, h, 8), postMat);
+      p.position.set(px, h / 2, pz);
+      p.castShadow = true;
+      group.add(p);
+    }
   };
 
-  buildSide(-hw, -hd, hw, -hd);   // back
-  buildSide(-hw, -hd, -hw, hd);   // left
-  buildSide(hw, -hd, hw, hd);     // right
-  buildSide(-hw, hd, hw, hd);     // front (gate visually part of screen)
+  // South, west, east — full, unbroken sides with windscreen + chain-link.
+  buildSide(minX, maxZ, maxX, maxZ);   // south
+  buildSide(minX, minZ, minX, maxZ);   // west
+  buildSide(maxX, minZ, maxX, maxZ);   // east
 
-  // Fence posts around perimeter every ~4m
-  const addPost = (x, z) => {
-    const p = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, FENCE_H, 8), postMat);
-    p.position.set(x, FENCE_H / 2, z);
-    p.castShadow = true;
-    group.add(p);
-  };
-  for (let x = -hw; x <= hw + 0.01; x += 4.5) { addPost(x, -hd); addPost(x, hd); }
-  for (let z = -hd; z <= hd + 0.01; z += 4.5) { addPost(-hw, z); addPost(hw, z); }
+  // North (clubhouse side) — chain-link only, three segments open at the two gates.
+  buildSide(minX, minZ, GATE_X[0] - GATE_W / 2, minZ, false);
+  buildSide(GATE_X[0] + GATE_W / 2, minZ, GATE_X[1] - GATE_W / 2, minZ, false);
+  buildSide(GATE_X[1] + GATE_W / 2, minZ, maxX, minZ, false);
+
+  for (const gx of GATE_X) buildGateFrame(group, gx, minZ, GATE_W, GATE_H);
+}
+
+/** Perimeter collision boxes, with two 2.2 m gate gaps in the north side. */
+function addFenceColliders() {
+  const { minX, maxX, minZ, maxZ } = ENC;
+
+  addBox(minX - 0.1, maxZ - 0.1, maxX + 0.1, maxZ + 0.1);   // south
+  addBox(minX - 0.1, minZ - 0.1, minX + 0.1, maxZ + 0.1);   // west
+  addBox(maxX - 0.1, minZ - 0.1, maxX + 0.1, maxZ + 0.1);   // east
+
+  // north, split into 3 segments around the gate gaps
+  addBox(minX - 0.1, minZ - 0.1, GATE_X[0] - GATE_W / 2, minZ + 0.1);
+  addBox(GATE_X[0] + GATE_W / 2, minZ - 0.1, GATE_X[1] - GATE_W / 2, minZ + 0.1);
+  addBox(GATE_X[1] + GATE_W / 2, minZ - 0.1, maxX + 0.1, minZ + 0.1);
 }
 
 /**
@@ -254,33 +262,41 @@ export function buildFloodlight(scene, x, z, height = 12) {
 }
 
 /**
- * Lay out 6 courts in a 3 (X) × 2 (Z) block and add floodlights.
- * Returns useful extents so the caller can place the clubhouse etc.
+ * Build a single row of 6 courts sharing one enclosure (matches the real facility's
+ * aerial layout): one continuous clay surface, per-court line markings + nets,
+ * a shared perimeter fence with two north-side gate gaps, and 6 floodlight masts.
  */
-export function buildCourtBlock(scene) {
-  const colGap = 2, rowGap = 2;
-  const colStep = FENCE_W + colGap;   // 20
-  const rowStep = FENCE_D + rowGap;   // 36
-  const colX = [-colStep, 0, colStep];
-  const rowZ = [-rowStep / 2, rowStep / 2];
+export function buildCourtRow(scene) {
+  const group = new THREE.Group();
+  scene.add(group);
 
-  for (const z of rowZ) {
-    for (const x of colX) {
-      buildCourt(scene, x, z);
-    }
+  // One continuous sand surface across the whole enclosure (as seen in the aerial photos).
+  const clay = new THREE.Mesh(
+    new THREE.PlaneGeometry(ENC.maxX - ENC.minX, ENC.maxZ - ENC.minZ),
+    pbr({ dir: 'assets/textures/clay', color: 0xb0532e, repeat: [24, 9] }));
+  clay.rotation.x = -Math.PI / 2;
+  clay.position.y = 0.02;
+  clay.receiveShadow = true;
+  group.add(clay);
+
+  const courtX = [];
+  for (let i = 0; i < ROW_COURTS; i++) {
+    const cx = (i - (ROW_COURTS - 1) / 2) * COURT_PITCH;
+    courtX.push(cx);
+    addCourtMarkings(group, cx);
   }
 
-  // Floodlights along the outer long sides and central spine.
-  const outerX = colStep + FENCE_W / 2 + 1.2;
-  const spineZ = 0;
-  buildFloodlight(scene, -outerX, -rowStep / 2, 12);
-  buildFloodlight(scene, -outerX, rowStep / 2, 12);
-  buildFloodlight(scene, outerX, -rowStep / 2, 12);
-  buildFloodlight(scene, outerX, rowStep / 2, 12);
-  buildFloodlight(scene, -colStep / 2, spineZ, 11);
-  buildFloodlight(scene, colStep / 2, spineZ, 11);
+  buildEnclosureFence(group);
+  addFenceColliders();
 
-  const halfBlockX = colStep + FENCE_W / 2;   // ~29
-  const halfBlockZ = rowStep / 2 + FENCE_D / 2; // ~35
-  return { halfBlockX, halfBlockZ };
+  // North line: only 2 masts, offset from the centre gate at x = -31.2.
+  for (const x of [-COURT_PITCH, COURT_PITCH]) {
+    buildFloodlight(scene, x, ENC.minZ - 0.8, 14);
+  }
+  // South line: 3 masts.
+  for (const x of [-COURT_PITCH * 2, 0, COURT_PITCH * 2]) {
+    buildFloodlight(scene, x, ENC.maxZ + 0.8, 14);
+  }
+
+  return { courtX };
 }

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { createScene, createSky, createLights, createGround } from './world.js';
-import { buildCourtBlock } from './tennis.js';
+import { buildCourtRow, ENC } from './tennis.js';
 import {
   buildClubhouse, buildTable, buildChair, buildUmbrella,
   buildBench, buildHedge, buildForest
@@ -30,7 +30,8 @@ createGround(scene);
 const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.1, 1200);
 
 // --- Facility ---
-const { halfBlockZ } = buildCourtBlock(scene);
+const { courtX } = buildCourtRow(scene);
+const halfBlockZ = Math.abs(ENC.minZ);
 
 // Clubhouse + terrace sit on the +Z (south) side, in front of the courts.
 const terraceFrontZ = halfBlockZ + 12;      // front edge of terrace, gap to courts
@@ -74,9 +75,9 @@ buildHedge(scene, terraceCenter.x + 8.5, terraceCenter.z, 0.7, 5, 0.7);
 buildForest(scene, 440, 80, 235);
 
 // --- Player ---
-// Start seated-ish at the white table, looking toward the courts (-Z).
-const startPos = new THREE.Vector3(startTablePos.x + 1.2, 0, startTablePos.z + 0.4);
-const lookTarget = new THREE.Vector3(startTablePos.x, 0, startTablePos.z - 20);
+// Provisional start north of the courts, looking across the row (repositioned in Task 6/7).
+const startPos = new THREE.Vector3(0, 0, ENC.minZ - 6);
+const lookTarget = new THREE.Vector3(0, 0, 0);
 const player = createPlayer(camera, renderer.domElement, startPos, lookTarget);
 scene.add(camera);
 
