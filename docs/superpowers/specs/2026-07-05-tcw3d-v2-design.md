@@ -161,3 +161,10 @@ Ball-Physik, Tag/Nacht-Umschalter, Backend jeglicher Art.
   Vorplatz (Blick nach Westen auf die Mauer): links = Süden, rechts =
   Norden. Bogen am linken (Süd-)Ende, TCW-Rondell links daneben auf dem
   Südpfeiler, Waidcup-Poster mit Abstand rechts (Nordabschnitt).
+- Terrassenkante: Pergola OHNE Bewuchs. Treppe nur am Zugang Court 1/2
+  (schmal, mit Geländer); Hecke trennt Terrasse/Vorplatz durchgehend von
+  der Kante, nur an der Treppe unterbrochen. Östlich der Treppe (Richtung
+  Court 2/3) Rasenterrasse auf halber Höhe (+0,75 m), nicht begehbar,
+  abgegrenzt bis zur Eingangsmauer. Gebüsch als natürliche Begrenzung an
+  der COURT-Seite des Gehwegs (zwischen Grotto- und TCW-Bereich).
+  Eingangsmauer im selben Material wie die Clubhaus-Fassade (Holz).
