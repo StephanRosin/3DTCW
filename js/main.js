@@ -17,7 +17,7 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.72;
+renderer.toneMappingExposure = 0.8;
 app.appendChild(renderer.domElement);
 
 // --- Scene / sky / lights / ground ---
@@ -53,7 +53,7 @@ const { startPos, lookTarget } = buildEntrance(scene);
 const screenPanels = buildScreens(scene);
 
 // --- Forest ring ---
-buildForest(scene, 440, 80, 235);
+buildForest(scene, 650, 75, 220);
 
 // --- Player ---
 const player = createPlayer(camera, renderer.domElement, startPos, lookTarget);
@@ -109,6 +109,7 @@ window.__tcw.setScreen = (i, source) => {
     return;
   }
   tex.colorSpace = THREE.SRGBColorSpace;
+  panel.material.map?.dispose?.();
   panel.material.map = tex;
   panel.material.needsUpdate = true;
 };

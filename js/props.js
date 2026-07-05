@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { addBox, PLATEAU, RAMPS } from './collision.js';
+import { addBox, PLATEAU, RAMPS, groundHeight } from './collision.js';
 import { pbr, loadTex } from './textures.js';
 
 export const wood = (c = 0x8a5a33) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.85, metalness: 0 });
@@ -327,7 +327,12 @@ function buildLongBuilding(scene, cx, cz, { signage } = {}) {
   const southZ = cz + bd / 2;   // facing the courts, +Z
   const northZ = cz - bd / 2;   // back of the building
 
-  const facadeMat = pbr({ dir: 'assets/textures/wood', color: 0x4a3826, repeat: [8, 1.5], roughness: 0.85 });
+  // Note: the wood diff.jpg texture already carries a dark-brown photographic
+  // colour, so the tint here must stay light (it multiplies the texture,
+  // not replace it) — 0x4a3826 previously double-darkened the facade to
+  // near-black under normal daylight; 0xb0925f keeps a "dark wood-slat" look
+  // while still reading clearly.
+  const facadeMat = pbr({ dir: 'assets/textures/wood', color: 0xb0925f, repeat: [8, 1.5], roughness: 0.85 });
   const building = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), facadeMat);
   building.position.set(cx, baseY + bh / 2, cz);
   building.castShadow = true; building.receiveShadow = true;
@@ -386,7 +391,7 @@ export function buildClubhouse(scene) {
   const p = PLATEAU;
   const bx = -23.4, bz = -39.5;
 
-  const { baseY, southZ } = buildLongBuilding(scene, bx, bz, {
+  const { baseY } = buildLongBuilding(scene, bx, bz, {
     signage: (scene, cx, baseY, southZ) => {
       // TCW logo rondell on the south facade (faces +Z toward the courts, no
       // rotation needed) — true colours, no tinting/transparency.
@@ -416,7 +421,7 @@ export function buildClubhouse(scene) {
     const wallMinX = -19, wallMaxX = -12.4;
     const wallW = wallMaxX - wallMinX, wallCx = (wallMinX + wallMaxX) / 2;
     const wallZ = -33.8, wallH = 3.6, wallThickness = 0.12;
-    const barWallMat = pbr({ dir: 'assets/textures/wood', color: 0x4a3826, repeat: [2, 1.5], roughness: 0.85 });
+    const barWallMat = pbr({ dir: 'assets/textures/wood', color: 0xb0925f, repeat: [2, 1.5], roughness: 0.85 });
     const barWall = new THREE.Mesh(new THREE.BoxGeometry(wallW, wallH, wallThickness), barWallMat);
     barWall.position.set(wallCx, baseY + wallH / 2, wallZ);
     barWall.castShadow = true; barWall.receiveShadow = true;
@@ -516,7 +521,7 @@ export function buildClubhouse(scene) {
 export function buildRestaurant(scene) {
   const bx = 23.4, bz = -39.5;
 
-  const { baseY, southZ } = buildLongBuilding(scene, bx, bz, {
+  const { baseY } = buildLongBuilding(scene, bx, bz, {
     signage: (scene, cx, baseY, southZ) => {
       const signMat = new THREE.MeshBasicMaterial({ map: signTexture('TESSIN GROTTO', { fontSize: 78 }), side: THREE.FrontSide });
       const sign = new THREE.Mesh(new THREE.PlaneGeometry(4.6, 0.8), signMat);
@@ -560,11 +565,15 @@ export function buildRestaurant(scene) {
 }
 
 /**
- * A ring of trees around the facility using two instanced meshes
- * (dark conifers + rounded broadleaf). Trees are placed in an annulus
- * so the interior stays clear.
+ * A ring of trees around the facility using three instanced meshes (dark
+ * conifers, rounded broadleaf, tall spruce) plus a handful of individual
+ * trees placed close behind the south/west fence for a "forest right at
+ * the courts" feel matching the reference photos. Ring trees are placed in
+ * an annulus so the interior stays clear; every tree's foot sits at
+ * `groundHeight(x, z)` so none float or sink (matters near the plateau
+ * edge, cheap insurance everywhere else since the ground is flat there).
  */
-export function buildForest(scene, count = 420, innerR = 78, outerR = 230) {
+export function buildForest(scene, count = 650, innerR = 75, outerR = 220) {
   // Conifer: trunk cone stack — we approximate with a single tall cone + trunk merged look.
   const coniferGeo = new THREE.ConeGeometry(2.4, 9, 7);
   coniferGeo.translate(0, 5.4, 0);
@@ -574,16 +583,31 @@ export function buildForest(scene, count = 420, innerR = 78, outerR = 230) {
   broadGeo.translate(0, 6.5, 0);
   const broadMat = new THREE.MeshStandardMaterial({ color: 0x3f7532, roughness: 1, flatShading: true });
 
+  // Tall spruce: a slender, much taller cone for height variety at the tree line.
+  const spruceGeo = new THREE.ConeGeometry(1.6, 13, 7);
+  spruceGeo.translate(0, 7.5, 0);
+  const spruceMat = new THREE.MeshStandardMaterial({ color: 0x24402a, roughness: 1, flatShading: true });
+
   const trunkGeo = new THREE.CylinderGeometry(0.28, 0.36, 4, 6);
   trunkGeo.translate(0, 2, 0);
   const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5b4127, roughness: 1 });
 
-  // Allocate full capacity for both; unused slots are parked far below ground.
-  const conifer = new THREE.InstancedMesh(coniferGeo, coniferMat, count);
-  const broad = new THREE.InstancedMesh(broadGeo, broadMat, count);
-  const trunk = new THREE.InstancedMesh(trunkGeo, trunkMat, count);
-  conifer.castShadow = broad.castShadow = true;
-  conifer.receiveShadow = broad.receiveShadow = true;
+  // 8-10 individual trees close behind the south/west fence (outside the
+  // court enclosure and off the plateau), on top of the ring capacity.
+  const extraTrees = [
+    { x: -20, z: -62 }, { x: -8, z: -64 }, { x: 5, z: -63 }, { x: 18, z: -61 }, { x: -30, z: -63 },
+    { x: -62, z: -20 }, { x: -64, z: -8 }, { x: -63, z: 5 }, { x: -61, z: 18 }, { x: -65, z: -30 },
+  ];
+  const capacity = count + extraTrees.length;
+
+  // Allocate full capacity for all three canopy types; unused slots are
+  // parked far below ground.
+  const conifer = new THREE.InstancedMesh(coniferGeo, coniferMat, capacity);
+  const broad = new THREE.InstancedMesh(broadGeo, broadMat, capacity);
+  const spruce = new THREE.InstancedMesh(spruceGeo, spruceMat, capacity);
+  const trunk = new THREE.InstancedMesh(trunkGeo, trunkMat, capacity);
+  conifer.castShadow = broad.castShadow = spruce.castShadow = true;
+  conifer.receiveShadow = broad.receiveShadow = spruce.receiveShadow = true;
 
   const dummy = new THREE.Object3D();
   // deterministic pseudo-random (no Math.random dependency issues), seeded by index
@@ -592,35 +616,61 @@ export function buildForest(scene, count = 420, innerR = 78, outerR = 230) {
     return s - Math.floor(s);
   };
 
-  let ci = 0, bi = 0, ti = 0;
-  for (let i = 0; i < count; i++) {
-    const ang = rand(i + 1) * Math.PI * 2;
-    const rad = innerR + rand(i + 7.3) * (outerR - innerR);
-    const x = Math.cos(ang) * rad;
-    const z = Math.sin(ang) * rad;
+  const tmpColor = new THREE.Color();
+  /** Sets `mesh`'s instance colour at `index` to `baseHex` scaled by a deterministic 0.85..1.15 factor. */
+  const setVariedColor = (mesh, index, baseHex, seed) => {
+    const factor = 0.85 + rand(seed) * 0.3;
+    tmpColor.set(baseHex).multiplyScalar(factor);
+    mesh.setColorAt(index, tmpColor);
+  };
+
+  let ci = 0, bi = 0, si = 0, ti = 0;
+  const placeTree = (i, x, z) => {
     const s = 0.7 + rand(i + 3.1) * 0.9;
     const rot = rand(i + 5.5) * Math.PI * 2;
 
-    dummy.position.set(x, 0, z);
+    dummy.position.set(x, groundHeight(x, z), z);
     dummy.rotation.set(0, rot, 0);
     dummy.scale.set(s, s, s);
     dummy.updateMatrix();
     trunk.setMatrixAt(ti++, dummy.matrix);
 
-    if (rand(i + 9.9) < 0.62) {
-      conifer.setMatrixAt(ci++, dummy.matrix);
+    const typeRoll = rand(i + 9.9);
+    if (typeRoll < 0.4) {
+      conifer.setMatrixAt(ci, dummy.matrix);
+      setVariedColor(conifer, ci, 0x2b4d2a, i + 11.2);
+      ci++;
+    } else if (typeRoll < 0.72) {
+      broad.setMatrixAt(bi, dummy.matrix);
+      setVariedColor(broad, bi, 0x3f7532, i + 11.2);
+      bi++;
     } else {
-      broad.setMatrixAt(bi++, dummy.matrix);
+      spruce.setMatrixAt(si, dummy.matrix);
+      setVariedColor(spruce, si, 0x24402a, i + 11.2);
+      si++;
     }
+  };
+
+  for (let i = 0; i < count; i++) {
+    const ang = rand(i + 1) * Math.PI * 2;
+    const rad = innerR + rand(i + 7.3) * (outerR - innerR);
+    placeTree(i, Math.cos(ang) * rad, Math.sin(ang) * rad);
   }
+  extraTrees.forEach((t, k) => placeTree(count + k, t.x, t.z));
+
   // Park unused instance slots far below ground so they never render.
   const hide = new THREE.Object3D();
   hide.position.set(0, -1000, 0); hide.updateMatrix();
-  for (; ci < count; ci++) conifer.setMatrixAt(ci, hide.matrix);
-  for (; bi < count; bi++) broad.setMatrixAt(bi, hide.matrix);
+  for (; ci < capacity; ci++) conifer.setMatrixAt(ci, hide.matrix);
+  for (; bi < capacity; bi++) broad.setMatrixAt(bi, hide.matrix);
+  for (; si < capacity; si++) spruce.setMatrixAt(si, hide.matrix);
 
   conifer.instanceMatrix.needsUpdate = true;
   broad.instanceMatrix.needsUpdate = true;
+  spruce.instanceMatrix.needsUpdate = true;
   trunk.instanceMatrix.needsUpdate = true;
-  scene.add(conifer, broad, trunk);
+  if (conifer.instanceColor) conifer.instanceColor.needsUpdate = true;
+  if (broad.instanceColor) broad.instanceColor.needsUpdate = true;
+  if (spruce.instanceColor) spruce.instanceColor.needsUpdate = true;
+  scene.add(conifer, broad, spruce, trunk);
 }

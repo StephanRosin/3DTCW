@@ -5,7 +5,7 @@ import { pbr } from './textures.js';
 /** Create the scene with fog tuned to blend the forest into a hazy horizon. */
 export function createScene() {
   const scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(0xbcd6ef, 130, 340);
+  scene.fog = new THREE.Fog(0xcfe3f5, 150, 380);
   return scene;
 }
 
@@ -35,14 +35,14 @@ export function createSky(scene) {
 
 /** Sun (directional) + sky/hemisphere fill light, with shadows. */
 export function createLights(scene, sunDir) {
-  const hemi = new THREE.HemisphereLight(0xdcecff, 0x5a6b3a, 0.85);
+  const hemi = new THREE.HemisphereLight(0xdcecff, 0x5a6b3a, 1.4);
   scene.add(hemi);
 
   const sun = new THREE.DirectionalLight(0xfff3e0, 2.4);
   sun.position.copy(sunDir).multiplyScalar(160);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
-  const s = 130;
+  sun.shadow.mapSize.set(4096, 4096);
+  const s = 120;
   sun.shadow.camera.left = -s;
   sun.shadow.camera.right = s;
   sun.shadow.camera.top = s;
