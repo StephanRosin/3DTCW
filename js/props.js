@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { addBox } from './collision.js';
 
-const wood = (c = 0x8a5a33) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.85, metalness: 0 });
-const metalDark = new THREE.MeshStandardMaterial({ color: 0x2b2f33, roughness: 0.5, metalness: 0.6 });
+export const wood = (c = 0x8a5a33) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.85, metalness: 0 });
+export const metalDark = new THREE.MeshStandardMaterial({ color: 0x2b2f33, roughness: 0.5, metalness: 0.6 });
 
 /** A simple café table (round top on a stem). Returns world position of the top. */
 export function buildTable(scene, x, z, color = 0xf3f1ea) {
@@ -44,13 +44,16 @@ export function buildUmbrella(scene, x, z, color = 0x2f6fb0) {
   g.position.set(x, 0, z);
   const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.3, 10), wood(0x6b6b6b));
   pole.position.y = 1.15; g.add(pole);
+  // Rounded canopy: a shallow polar cap of a sphere (dome), replacing the old cone shape.
+  const canopyR = 1.6;
+  const canopyBaseY = 1.8;
   const canopy = new THREE.Mesh(
-    new THREE.ConeGeometry(1.5, 0.55, 8, 1, true),
+    new THREE.SphereGeometry(canopyR, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2.6),
     new THREE.MeshStandardMaterial({ color, roughness: 0.8, side: THREE.DoubleSide })
   );
-  canopy.position.y = 2.35; canopy.castShadow = true; g.add(canopy);
+  canopy.position.y = canopyBaseY; canopy.castShadow = true; g.add(canopy);
   const cap = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), wood(0x555555));
-  cap.position.y = 2.62; g.add(cap);
+  cap.position.y = canopyBaseY + canopyR + 0.05; g.add(cap);
   scene.add(g);
   addBox(x - 0.12, z - 0.12, x + 0.12, z + 0.12);
 }
