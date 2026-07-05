@@ -37,6 +37,11 @@ export function createPlayer(camera, dom, startPos, lookAt) {
     if (e.code === 'Escape') stop();
   });
   window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+  // Alt-tab / focus loss: release every held key so movement doesn't get
+  // "stuck" (e.g. a stuck-W walk) once the window regains focus.
+  window.addEventListener('blur', () => {
+    for (const code in keys) keys[code] = false;
+  });
 
   const isLocked = () => document.pointerLockElement === dom;
 
@@ -66,8 +71,17 @@ export function createPlayer(camera, dom, startPos, lookAt) {
   }, { passive: true });
   dom.addEventListener('touchend', () => { lastTouch = null; }, { passive: true });
 
+  // Tracks the previous locked state so we can detect a locked->unlocked
+  // transition (e.g. the user pressed the browser's own Esc-to-unlock, or
+  // the frame lost pointer lock for any other reason) and reopen the menu.
+  // The drag-look fallback never engages pointer lock, so isLocked() stays
+  // false throughout and this transition never fires for that path.
+  let wasLocked = false;
   document.addEventListener('pointerlockchange', () => {
-    document.body.classList.toggle('locked', isLocked());
+    const locked = isLocked();
+    document.body.classList.toggle('locked', locked);
+    if (wasLocked && !locked && started) stop();
+    wasLocked = locked;
   });
 
   function start() {

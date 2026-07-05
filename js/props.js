@@ -107,28 +107,6 @@ export function buildBigUmbrella(scene, x, z, color = 0xc03030, y = 0) {
   addBox(x - 0.15, z - 0.15, x + 0.15, z + 0.15);   // pole-only collider
 }
 
-/** A wooden bench. */
-export function buildBench(scene, x, z, rotY = 0) {
-  const g = new THREE.Group();
-  g.position.set(x, 0, z);
-  g.rotation.y = rotY;
-  const m = wood(0x9a6a3f);
-  for (let i = 0; i < 3; i++) {
-    const slat = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.06, 0.12), m);
-    slat.position.set(0, 0.45, -0.18 + i * 0.16); slat.castShadow = true; g.add(slat);
-  }
-  for (let i = 0; i < 2; i++) {
-    const slat = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.12, 0.06), m);
-    slat.position.set(0, 0.62 + i * 0.16, -0.24); g.add(slat);
-  }
-  for (const lx of [-0.8, 0.8]) {
-    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.45, 0.4), wood(0x6f4a2a));
-    leg.position.set(lx, 0.225, -0.1); g.add(leg);
-  }
-  scene.add(g);
-  addBox(x - 0.9, z - 0.3, x + 0.9, z + 0.3);
-}
-
 /** A backless wooden bench (seat slats + legs only, no backrest). */
 export function buildBenchBackless(scene, x, z, rotY = 0, y = 0) {
   const g = new THREE.Group();
@@ -148,16 +126,6 @@ export function buildBenchBackless(scene, x, z, rotY = 0, y = 0) {
   const halfX = Math.abs(0.9 * Math.cos(rotY)) + Math.abs(0.3 * Math.sin(rotY));
   const halfZ = Math.abs(0.9 * Math.sin(rotY)) + Math.abs(0.3 * Math.cos(rotY));
   addBox(x - halfX, z - halfZ, x + halfX, z + halfZ);
-}
-
-/** A trimmed hedge (box). */
-export function buildHedge(scene, x, z, w, d, h = 0.8, y = 0) {
-  const mat = new THREE.MeshStandardMaterial({ color: 0x3d6b2e, roughness: 1 });
-  const hedge = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
-  hedge.position.set(x, y + h / 2, z);
-  hedge.castShadow = true; hedge.receiveShadow = true;
-  scene.add(hedge);
-  addBox(x - w / 2, z - d / 2, x + w / 2, z + d / 2);
 }
 
 /**
@@ -263,8 +231,7 @@ export function buildTerracePlateau(scene) {
     scene.add(walkDeck);
 
     // South retaining face (visible from the courts) + fall collider —
-    // covers the full width even through the east-gate gap in the north
-    // fence collider, so the elevated walkway never has an unguarded edge.
+    // covers the full width of the walkway, so it never has an unguarded edge.
     addBox(GROTTO_WALK.minX, GROTTO_WALK.maxZ - 0.15, GROTTO_WALK.maxX, GROTTO_WALK.maxZ + 0.15);
 
     // West step wall: closes the cliff at x=10 where the walkway (1.5 m)
@@ -280,6 +247,22 @@ export function buildTerracePlateau(scene) {
     stepWall.castShadow = true; stepWall.receiveShadow = true;
     scene.add(stepWall);
     addBox(9.7, -21, 10.3, -18.3);
+
+    // East end cap: the "East retaining wall" built above already blocks
+    // movement past x=48 (its collider spans the full z depth, including
+    // this walkway strip), but that wall's top is flush with the walkway
+    // surface (both sit at y=1.5) — standing on the walkway there is no
+    // parapet above floor level, so the view reads as an open edge straight
+    // into the forest at ground level beyond. This low parapet (matching
+    // the Grotto Mäuerchen: 0.8 m, same concrete) closes that visual gap;
+    // its own collider is added too, redundant with the east wall's but
+    // harmless (belt-and-braces for this specific strip).
+    const capH = 0.8;
+    const cap = new THREE.Mesh(new THREE.BoxGeometry(0.3, capH, gd), wallMat);
+    cap.position.set(GROTTO_WALK.maxX, deckH + capH / 2, gcz);
+    cap.castShadow = true; cap.receiveShadow = true;
+    scene.add(cap);
+    addBox(GROTTO_WALK.maxX - 0.3, GROTTO_WALK.minZ, GROTTO_WALK.maxX + 0.35, GROTTO_WALK.maxZ);
   }
 
   // West / north edge colliders (forest side / clubhouse-back side stay solid boundaries).

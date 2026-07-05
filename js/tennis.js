@@ -14,15 +14,18 @@ export const COURT_PITCH = 15.6;
 export const ROW_COURTS = 6;
 export const ENC = { minX: -48.8, maxX: 48.8, minZ: -18, maxZ: 18, h: 4 };
 
-// Gate gaps in the north fence (world x, half-width 1.1 m each).
-// -31.2: main access, between courts 1 and 2 (later gets a staircase from the raised terrace).
-// +40: east access.
+// Gate gap in the north fence (world x, half-width 1.1 m each).
+// -31.2: main access, between courts 1 and 2 — lands at the raised terrace's
+// staircase (see RAMPS in collision.js). There used to be a second gate at
+// +40 (east access), but the grotto walkway's retaining edge boxed it in
+// from outside (dead end), so it was removed — the north fence is now
+// continuous there.
 const GATE_W = 2.2;
 const GATE_H = 2.2;
-const GATE_X = [-31.2, 40];
+const GATE_X = [-31.2];
 
 // Shared materials / textures (built once, reused across all 6 courts).
-let _lineMat, _netMat, _metalDark, _ballMat, _brushMat;
+let _lineMat, _netMat, _ballMat, _brushMat;
 
 function lineMaterial() {
   if (_lineMat) return _lineMat;
@@ -96,12 +99,6 @@ function netMaterial() {
   return _netMat;
 }
 
-function metalDarkMaterial() {
-  if (_metalDark) return _metalDark;
-  _metalDark = new THREE.MeshStandardMaterial({ color: 0x2b2b2b, roughness: 0.5, metalness: 0.6 });
-  return _metalDark;
-}
-
 function ballMaterial() {
   if (_ballMat) return _ballMat;
   _ballMat = new THREE.MeshStandardMaterial({ color: 0xd8e63c, roughness: 0.6 });
@@ -159,7 +156,7 @@ function addNet(group, cx) {
 
 /** Visual door frame (uprights + lintel) marking a gate opening in the fence. */
 function buildGateFrame(group, x, z, width, height) {
-  const mat = metalDarkMaterial();
+  const mat = metalDark;
   const postW = 0.08;
   for (const dx of [-width / 2, width / 2]) {
     const post = new THREE.Mesh(new THREE.BoxGeometry(postW, height, postW), mat);
@@ -174,7 +171,7 @@ function buildGateFrame(group, x, z, width, height) {
 
 /**
  * Shared perimeter fence around the whole enclosure (windscreen + chain-link).
- * North side is built as three segments so the two gate openings are visually open.
+ * North side is built as two segments so the gate opening is visually open.
  */
 function buildEnclosureFence(group) {
   const { minX, maxX, minZ, maxZ, h } = ENC;
@@ -228,15 +225,14 @@ function buildEnclosureFence(group) {
   buildSide(minX, minZ, minX, maxZ);   // west
   buildSide(maxX, minZ, maxX, maxZ);   // east
 
-  // North (clubhouse side) — chain-link only, three segments open at the two gates.
+  // North (clubhouse side) — chain-link only, two segments open at the gate.
   buildSide(minX, minZ, GATE_X[0] - GATE_W / 2, minZ, false);
-  buildSide(GATE_X[0] + GATE_W / 2, minZ, GATE_X[1] - GATE_W / 2, minZ, false);
-  buildSide(GATE_X[1] + GATE_W / 2, minZ, maxX, minZ, false);
+  buildSide(GATE_X[0] + GATE_W / 2, minZ, maxX, minZ, false);
 
   for (const gx of GATE_X) buildGateFrame(group, gx, minZ, GATE_W, GATE_H);
 }
 
-/** Perimeter collision boxes, with two 2.2 m gate gaps in the north side. */
+/** Perimeter collision boxes, with one 2.2 m gate gap in the north side. */
 function addFenceColliders() {
   const { minX, maxX, minZ, maxZ } = ENC;
 
@@ -244,10 +240,9 @@ function addFenceColliders() {
   addBox(minX - 0.1, minZ - 0.1, minX + 0.1, maxZ + 0.1);   // west
   addBox(maxX - 0.1, minZ - 0.1, maxX + 0.1, maxZ + 0.1);   // east
 
-  // north, split into 3 segments around the gate gaps
+  // north, split into 2 segments around the gate gap
   addBox(minX - 0.1, minZ - 0.1, GATE_X[0] - GATE_W / 2, minZ + 0.1);
-  addBox(GATE_X[0] + GATE_W / 2, minZ - 0.1, GATE_X[1] - GATE_W / 2, minZ + 0.1);
-  addBox(GATE_X[1] + GATE_W / 2, minZ - 0.1, maxX + 0.1, minZ + 0.1);
+  addBox(GATE_X[0] + GATE_W / 2, minZ - 0.1, maxX + 0.1, minZ + 0.1);
 }
 
 /**
@@ -446,7 +441,7 @@ function addCourtDetails(group, cx, index) {
 /**
  * Build a single row of 6 courts sharing one enclosure (matches the real facility's
  * aerial layout): one continuous clay surface, per-court line markings + nets,
- * a shared perimeter fence with two north-side gate gaps, and 6 floodlight masts.
+ * a shared perimeter fence with one north-side gate gap, and 5 floodlight masts.
  */
 export function buildCourtRow(scene) {
   const group = new THREE.Group();

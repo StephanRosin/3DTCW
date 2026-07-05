@@ -13,10 +13,12 @@ const PANEL_Y = 1.8;                  // local height above the terrace floor
 /**
  * Four free-standing display screens on the tennis-club terrace, each a
  * dark frame + 16:9 panel on a center-pole stand, facing south toward the
- * walkway/courts. Panels start with a dark placeholder material and
- * are meant to be driven by a future companion WebApp — see
- * `window.__tcw.setScreen` in main.js, which swaps in a texture, canvas or
- * video element at runtime.
+ * walkway/courts. Panels start with a dark placeholder material (color
+ * 0x0d1420, no map) and are meant to be driven by a future companion
+ * WebApp — see `window.__tcw.setScreen` in main.js, which swaps in a
+ * texture, canvas or video element at runtime (resetting the material
+ * colour to white so the map isn't tinted dark), or resets the panel to
+ * its placeholder when called with `null`.
  *
  * Returns the 4 panel meshes, ordered east -> west (matches SCREEN_X).
  */

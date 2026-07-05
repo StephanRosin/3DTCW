@@ -33,9 +33,9 @@ const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerH
 // --- Facility ---
 const { courtX } = buildCourtRow(scene);
 
-// Note: the provisional v1 clubhouse/terrace (south side) has been removed.
-// The real clubhouse will be rebuilt on the north side in a later task, which is
-// also why the north fence has no windscreen (clear sightline from the clubhouse).
+// Note: the clubhouse lives on the north side of the courts (see buildClubhouse
+// below), which is why the north fence has no windscreen there (clear sightline
+// from the clubhouse/terrace onto the courts).
 
 // --- Terrace plateau (Task 6): ground-height model + grandstand steps ---
 buildTerracePlateau(scene);
@@ -89,21 +89,41 @@ window.__tcw = { scene, camera, renderer, music: music.audio };
 window.__tcw.teleport = (x, z, yawDeg = 0) => {
   camera.position.set(x, 1.7 + groundHeight(x, z), z);
   camera.rotation.set(0, yawDeg * Math.PI / 180, 0);
-  player.setView?.(x, z, yawDeg);   // ab Task 6: hält yaw/pitch des Controllers synchron
+  player.setView?.(x, z, yawDeg);   // keeps the controller's yaw/pitch in sync with the teleport
 };
 
 // --- Standing-screen API (for a future companion WebApp) ----------------
 // `screens[i]` is the panel Mesh (east -> west, i = 0..3). `setScreen(i, source)`
 // accepts a THREE.Texture, HTMLCanvasElement, HTMLImageElement or
 // HTMLVideoElement, wraps it in the right texture type, sets sRGB colour
-// space, and assigns it to the panel's material map.
+// space, and assigns it to the panel's material map. The placeholder panel
+// material is tinted dark (0x0d1420) so it reads as an "off" screen; since
+// three.js multiplies map x color, a texture assigned without resetting the
+// colour to white would render near-black. `setScreen(i, null)` clears the
+// map and restores the dark placeholder. Textures created by setScreen
+// itself (from a canvas/video/image source) are tracked via
+// `panel.userData.ownedTexture` and disposed on the next call; a
+// caller-supplied THREE.Texture is never disposed by this API.
 window.__tcw.screens = screenPanels;
 window.__tcw.setScreen = (i, source) => {
   const panel = screenPanels[i];
-  if (!panel) return;
-  let tex;
+  if (!panel) { console.warn(`setScreen: invalid screen index ${i}`); return; }
+
+  // Dispose the previous texture only if setScreen created it itself.
+  if (panel.userData.ownedTexture) panel.material.map?.dispose?.();
+  panel.userData.ownedTexture = false;
+
+  if (source == null) {
+    panel.material.map = null;
+    panel.material.color.set(0x0d1420);
+    panel.material.needsUpdate = true;
+    return;
+  }
+
+  let tex, owned = true;
   if (source instanceof THREE.Texture) {
     tex = source;
+    owned = false;   // caller owns it; never dispose it from here
   } else if (typeof HTMLVideoElement !== 'undefined' && source instanceof HTMLVideoElement) {
     tex = new THREE.VideoTexture(source);
   } else if (typeof HTMLCanvasElement !== 'undefined' && source instanceof HTMLCanvasElement) {
@@ -112,12 +132,14 @@ window.__tcw.setScreen = (i, source) => {
     tex = new THREE.Texture(source);
     tex.needsUpdate = true;
   } else {
+    console.warn(`setScreen: unsupported source type for screen ${i}`, source);
     return;
   }
   tex.colorSpace = THREE.SRGBColorSpace;
-  panel.material.map?.dispose?.();
   panel.material.map = tex;
+  panel.material.color.set(0xffffff);   // undo the dark placeholder tint so the map shows at full brightness
   panel.material.needsUpdate = true;
+  panel.userData.ownedTexture = owned;
 };
 
 // --- Loop ---

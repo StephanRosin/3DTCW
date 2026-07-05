@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { addBox } from './collision.js';
+import { addBox, PLATEAU } from './collision.js';
 import { pbr, loadTex } from './textures.js';
 
 /**
@@ -15,7 +15,7 @@ import { pbr, loadTex } from './textures.js';
  */
 export function buildEntrance(scene) {
   const group = new THREE.Group();
-  group.position.set(0, 1.5, 0);
+  group.position.set(0, PLATEAU.h, 0);
   scene.add(group);
 
   const wallX = -12;          // wall centreline
@@ -118,17 +118,62 @@ export function buildEntrance(scene) {
   // --- Plaza greenery, at the COURT side of the plaza (the natural
   // boundary between the Grotto walkway and the TCW terrace), NOT near the
   // buildings/entrance. Sits just north of (behind) the terrace's south
-  // retaining-wall hedge line (z≈-21.2), on the plaza itself. -------------
+  // retaining-wall hedge line (z≈-21.2), on the plaza itself. A dense run
+  // of 7 overlapping bush clusters (radius 0.7-1.4 m, slight z/y jitter so
+  // it doesn't read as a mechanical repeat) reads as a proper green
+  // boundary rather than 3 sparse, puny bushes. -----------------------
   const bushMat = new THREE.MeshStandardMaterial({ color: 0x2e5c28, roughness: 1, flatShading: true });
-  function buildBush(x, z, r) {
+  function buildBush(x, z, r, dy = 0) {
     const bush = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 0), bushMat);
-    bush.position.set(x, r * 0.85, z);
+    bush.position.set(x, r * 0.85 + dy, z);
     bush.castShadow = true; bush.receiveShadow = true;
     group.add(bush);
   }
-  buildBush(0.5, -21.7, 1.0);
-  buildBush(3, -21.7, 1.2);
-  buildBush(7, -21.7, 0.8);
+  const bushClusters = [
+    { x: -0.3, z: -21.6, r: 1.0, dy: 0.05 },
+    { x: 1.0, z: -21.9, r: 1.3, dy: -0.05 },
+    { x: 2.2, z: -21.5, r: 0.9, dy: 0.08 },
+    { x: 3.4, z: -22.0, r: 1.4, dy: -0.03 },
+    { x: 4.6, z: -21.6, r: 1.0, dy: 0.04 },
+    { x: 5.8, z: -21.9, r: 1.2, dy: -0.06 },
+    { x: 7.0, z: -21.5, r: 0.8, dy: 0.06 },
+  ];
+  for (const b of bushClusters) buildBush(b.x, b.z, b.r, b.dy);
+
+  // A broad, sprawling-crown tree ("ausladende Krone") anchored in the
+  // plaza greenery: a short trunk + a wide, flattened canopy built from
+  // overlapping icosahedra (rather than the tall narrow conifers used in
+  // the forest ring), so it overhangs both the plaza and the drop to the
+  // courts side. Only the trunk gets a (small) collider — the overhanging
+  // crown stays walkable-under.
+  {
+    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5b4127, roughness: 1 });
+    const crownMat = new THREE.MeshStandardMaterial({ color: 0x3f7532, roughness: 1, flatShading: true });
+    const tx = 3.5, tz = -21.9, trunkH = 2.2, trunkR = 0.14;
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(trunkR * 0.7, trunkR, trunkH, 8), trunkMat);
+    trunk.position.set(tx, trunkH / 2, tz);
+    trunk.castShadow = true;
+    group.add(trunk);
+
+    const crownY = 4;
+    const crownBlobs = [
+      { dx: 0, dz: 0, r: 1.7 },
+      { dx: 1.2, dz: 0.5, r: 1.2 },
+      { dx: -1.2, dz: 0.5, r: 1.2 },
+      { dx: 0.4, dz: -1.3, r: 1.1 },
+      { dx: -0.5, dz: -1.2, r: 1.1 },
+      { dx: 0.2, dz: 1.4, r: 1.1 },
+    ];
+    for (const b of crownBlobs) {
+      const blob = new THREE.Mesh(new THREE.IcosahedronGeometry(b.r, 0), crownMat);
+      blob.position.set(tx + b.dx, crownY, tz + b.dz);
+      blob.scale.y = 0.55;
+      blob.castShadow = true; blob.receiveShadow = true;
+      group.add(blob);
+    }
+
+    addBox(tx - trunkR * 1.5, tz - trunkR * 1.5, tx + trunkR * 1.5, tz + trunkR * 1.5);
+  }
 
   // Planter, same court-side boundary, east of the bushes.
   const planterMat = new THREE.MeshStandardMaterial({ color: 0x3d6b2e, roughness: 1 });
