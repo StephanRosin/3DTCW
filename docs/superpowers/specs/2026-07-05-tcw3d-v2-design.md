@@ -118,3 +118,4 @@ Ball-Physik, Tag/Nacht-Umschalter, Backend jeglicher Art.
   Platz 1 und 2** (x ≈ −31,2). Zusätzlich Ost-Treppe zum zweiten Tor (x = +40).
 - Der Eingangsbereich (Steinbogen) liegt ebenfalls auf dem Plateau; vom Weg
   blickt man auf die Plätze hinunter (wie Foto TCW6).
+- **Keine Schiedsrichterstühle** auf den Plätzen (gestrichen).
