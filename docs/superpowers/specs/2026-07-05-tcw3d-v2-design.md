@@ -125,3 +125,6 @@ Ball-Physik, Tag/Nacht-Umschalter, Backend jeglicher Art.
   Barriere hinter dem Klubhaus (Bewegungsraum: Terrasse, Treppen, Courts).
 - Werbebanden ohne Dummy-Sponsoren: nur „Waidcup 2026"-Banner, TCW-Logos
   oder das Waidcup-Logo (waidcup.png) als Banner.
+- Terrasse doppelt so tief (~15 m); Klubhaus dafür nach hinten versetzt.
+- Der Eingang (Steinbogen) führt DIREKT auf die Terrasse; kein langer Weg
+  im Osten mehr, keine Ost-Treppe. Spieler-Start auf dem Vorplatz beim Bogen.
