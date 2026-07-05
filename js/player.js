@@ -1,77 +1,128 @@
 import * as THREE from 'three';
-import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 import { resolveCollisions } from './collision.js';
 
 const EYE_HEIGHT = 1.7;
 const RADIUS = 0.4;
 const WALK = 5.5;
 const RUN = 10.5;
-const ACCEL = 12;      // how fast we reach target velocity
+const ACCEL = 12;
 const WORLD_LIMIT = 240;
+const SENS = 0.0022;               // mouse sensitivity
+const PITCH_LIMIT = Math.PI / 2 - 0.05;
 
-export function createPlayer(camera, domElement, startPos, lookAt) {
+/**
+ * First-person controller with two look modes:
+ *  - Pointer Lock (preferred): click to capture the mouse, move freely.
+ *  - Drag fallback: if pointer lock is unavailable/denied (e.g. embedded
+ *    frames), hold the mouse button and drag to look around.
+ * Keyboard movement works whenever the walk has been "started".
+ */
+export function createPlayer(camera, dom, startPos, lookAt) {
+  camera.rotation.order = 'YXZ';
   camera.position.set(startPos.x, EYE_HEIGHT, startPos.z);
 
-  const controls = new PointerLockControls(camera, domElement);
-
-  // Aim the camera at the initial look target.
+  let yaw = 0, pitch = 0;
   if (lookAt) {
-    const tmp = new THREE.Vector3(lookAt.x, EYE_HEIGHT, lookAt.z);
-    camera.lookAt(tmp);
+    yaw = Math.atan2(-(lookAt.x - startPos.x), -(lookAt.z - startPos.z));
   }
 
+  let started = false;
+  let dragging = false;
+  let onStop = () => {};
+
   const keys = Object.create(null);
-  const onKey = (v) => (e) => {
-    keys[e.code] = v;
-    // prevent page scroll on arrows/space
+  window.addEventListener('keydown', (e) => {
+    keys[e.code] = true;
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
-  };
-  window.addEventListener('keydown', onKey(true));
-  window.addEventListener('keyup', onKey(false));
+    if (e.code === 'Escape') stop();
+  });
+  window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+
+  const isLocked = () => document.pointerLockElement === dom;
+
+  function applyLook(dx, dy) {
+    yaw -= dx * SENS;
+    pitch -= dy * SENS;
+    pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, pitch));
+  }
+
+  document.addEventListener('mousemove', (e) => {
+    if (!started) return;
+    if (isLocked() || dragging) applyLook(e.movementX || 0, e.movementY || 0);
+  });
+
+  // Drag fallback (used when pointer lock is not active).
+  dom.addEventListener('mousedown', () => { if (started && !isLocked()) { dragging = true; dom.style.cursor = 'grabbing'; } });
+  window.addEventListener('mouseup', () => { dragging = false; dom.style.cursor = ''; });
+
+  // Touch drag (mobile).
+  let lastTouch = null;
+  dom.addEventListener('touchstart', (e) => { if (started) lastTouch = e.touches[0]; }, { passive: true });
+  dom.addEventListener('touchmove', (e) => {
+    if (!started || !lastTouch) return;
+    const t = e.touches[0];
+    applyLook((t.clientX - lastTouch.clientX) * 2.2, (t.clientY - lastTouch.clientY) * 2.2);
+    lastTouch = t;
+  }, { passive: true });
+  dom.addEventListener('touchend', () => { lastTouch = null; }, { passive: true });
+
+  document.addEventListener('pointerlockchange', () => {
+    document.body.classList.toggle('locked', isLocked());
+  });
+
+  function start() {
+    started = true;
+    document.body.classList.add('locked');
+    // Attempt pointer lock; harmless if the frame denies it (drag mode still works).
+    const p = dom.requestPointerLock?.();
+    if (p && typeof p.catch === 'function') p.catch(() => {});
+  }
+  function stop() {
+    if (!started) return;
+    started = false;
+    dragging = false;
+    document.body.classList.remove('locked');
+    if (isLocked()) document.exitPointerLock?.();
+    onStop();
+  }
 
   const velocity = new THREE.Vector3();
-  const forward = new THREE.Vector3();
-  const right = new THREE.Vector3();
-  const wish = new THREE.Vector3();
 
   function update(dt) {
-    if (!controls.isLocked) {
-      velocity.set(0, 0, 0);
-      return;
-    }
-    // Horizontal camera basis.
-    camera.getWorldDirection(forward);
-    forward.y = 0;
-    forward.normalize();
-    right.set(-forward.z, 0, forward.x); // forward × up
+    camera.rotation.set(pitch, yaw, 0);
+    if (!started) { velocity.set(0, 0, 0); return; }
+
+    const sinY = Math.sin(yaw), cosY = Math.cos(yaw);
+    const fwd = { x: -sinY, z: -cosY };   // horizontal forward
+    const right = { x: cosY, z: -sinY };
 
     const f = (keys['KeyW'] || keys['ArrowUp'] ? 1 : 0) - (keys['KeyS'] || keys['ArrowDown'] ? 1 : 0);
     const s = (keys['KeyD'] || keys['ArrowRight'] ? 1 : 0) - (keys['KeyA'] || keys['ArrowLeft'] ? 1 : 0);
 
-    wish.set(0, 0, 0);
-    wish.addScaledVector(forward, f);
-    wish.addScaledVector(right, s);
-    if (wish.lengthSq() > 0) wish.normalize();
+    let wx = fwd.x * f + right.x * s;
+    let wz = fwd.z * f + right.z * s;
+    const len = Math.hypot(wx, wz);
+    if (len > 0) { wx /= len; wz /= len; }
 
     const speed = (keys['ShiftLeft'] || keys['ShiftRight']) ? RUN : WALK;
-    const targetX = wish.x * speed;
-    const targetZ = wish.z * speed;
-
-    // Smooth acceleration / deceleration.
     const t = Math.min(1, ACCEL * dt);
-    velocity.x += (targetX - velocity.x) * t;
-    velocity.z += (targetZ - velocity.z) * t;
+    velocity.x += (wx * speed - velocity.x) * t;
+    velocity.z += (wz * speed - velocity.z) * t;
 
     camera.position.x += velocity.x * dt;
     camera.position.z += velocity.z * dt;
 
     resolveCollisions(camera.position, RADIUS);
 
-    // Keep inside the world and locked to eye height.
     camera.position.x = THREE.MathUtils.clamp(camera.position.x, -WORLD_LIMIT, WORLD_LIMIT);
     camera.position.z = THREE.MathUtils.clamp(camera.position.z, -WORLD_LIMIT, WORLD_LIMIT);
     camera.position.y = EYE_HEIGHT;
   }
 
-  return { controls, update };
+  return {
+    update,
+    start,
+    stop,
+    set onStop(fn) { onStop = fn; },
+  };
 }

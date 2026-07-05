@@ -78,22 +78,18 @@ buildForest(scene, 440, 80, 235);
 const startPos = new THREE.Vector3(startTablePos.x + 1.2, 0, startTablePos.z + 0.4);
 const lookTarget = new THREE.Vector3(startTablePos.x, 0, startTablePos.z - 20);
 const player = createPlayer(camera, renderer.domElement, startPos, lookTarget);
-scene.add(player.controls.getObject());
+scene.add(camera);
 
-// --- Pointer-lock / overlay wiring ---
+// --- Overlay wiring ---
 const overlay = document.getElementById('overlay');
 const playBtn = document.getElementById('play');
 const loading = document.getElementById('loading');
 
-playBtn.addEventListener('click', () => player.controls.lock());
-player.controls.addEventListener('lock', () => {
+playBtn.addEventListener('click', () => {
   overlay.classList.add('hidden');
-  document.body.classList.add('locked');
+  player.start();
 });
-player.controls.addEventListener('unlock', () => {
-  overlay.classList.remove('hidden');
-  document.body.classList.remove('locked');
-});
+player.onStop = () => overlay.classList.remove('hidden');
 
 // --- Resize ---
 window.addEventListener('resize', () => {
