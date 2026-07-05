@@ -172,3 +172,7 @@ Ball-Physik, Tag/Nacht-Umschalter, Backend jeglicher Art.
   kurzer Treppe (ohne Geländer) von der Terrasse auf den erhöhten Rasen;
   der Rasen ist begehbar (+0,75 m), zu den Courts und an der Eingangsmauer
   abgegrenzt.
+- Grotto: Der Gehweg reicht bis direkt an den Tenniscourt-Zaun (Plateau-
+  Erweiterung x 10…48 bis z=−18,3; der 4-m-Zaun ragt 2,5 m über den Gehweg
+  — natürliche Barriere mit Blick auf die Plätze). Mäuerchen rückt auf
+  z=−21,5; die Grotto-Terrasse wird entsprechend grösser (mehr Tische).
